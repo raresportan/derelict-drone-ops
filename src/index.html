@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Derelict Drone Ops</title>
+<meta name="description" content="A full-screen amber CRT salvage terminal: board a derelict hauler and steer three drones through its rooms by typing commands.">
+<style>
+:root{
+  --tube:#0A0600; --amb:#FFB000; --hot:#FF6A00; --dim:#6A4500; --mid:#C88A08; --hi:#FFD27A;
+  --fs:13px; --lh:19px;
+  --bz-t:26px; --bz-s:30px; --bz-b:56px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:#080503;
+  background-image:
+    radial-gradient(ellipse 60% 70% at 50% 46%, rgba(255,150,20,.075) 0%, rgba(255,120,0,.02) 45%, transparent 70%),
+    radial-gradient(ellipse at 50% 40%, #1a1108 0%, #0f0a06 50%, #060403 100%);
+  color:var(--amb);
+  font-family:Menlo,Consolas,"Courier New",monospace;font-size:var(--fs);line-height:var(--lh);
+  overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+.grain{position:fixed;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:soft-light;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .4  0 0 0 0 .3  0 0 0 .55 0'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>");}
+
+/* ---- moulded terminal, filling the viewport ---- */
+#term{
+  position:fixed;inset:10px;display:flex;flex-direction:column;
+  padding:var(--bz-t) var(--bz-s) var(--bz-b);
+  border-radius:34px 34px 40px 40px;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .6  0 0 0 0 .55  0 0 0 0 .5  0 0 0 .22 0'/></filter><rect width='220' height='220' filter='url(%23g)'/></svg>"),
+    linear-gradient(175deg,#302922 0%,#24201b 22%,#1c1915 70%,#151310 100%);
+  box-shadow:
+    inset 0 2px 1px rgba(255,240,220,.07), inset 0 -4px 8px rgba(0,0,0,.55),
+    inset 3px 0 6px rgba(255,240,220,.025), inset -3px 0 6px rgba(0,0,0,.35),
+    0 2px 0 #0c0a08, 0 34px 70px rgba(0,0,0,.75), 0 0 140px rgba(255,140,0,.05);
+}
+#term::before{content:"";position:absolute;left:calc(var(--bz-s) - 12px);right:calc(var(--bz-s) - 12px);
+  top:calc(var(--bz-t) - 12px);bottom:calc(var(--bz-b) - 12px);border-radius:36px/42px;
+  background:linear-gradient(180deg,#0f0d0b,#191612);
+  box-shadow:inset 0 6px 12px rgba(0,0,0,.85),inset 0 -2px 2px rgba(255,240,220,.05),0 1px 0 rgba(255,240,220,.05)}
+.tube{position:relative;flex:1;min-height:0;border-radius:28px/34px;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 50%, #120b02 0%, #0A0600 60%, #070400 100%);
+  box-shadow:0 0 0 2px #050302, 0 0 18px rgba(255,140,0,.08)}
+#screen{position:absolute;inset:16px 24px 14px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px}
+.booting #screen{animation:rasterIn .7s ease-out}
+@keyframes rasterIn{0%,40%{opacity:0;transform:scaleY(.01);filter:brightness(3)}85%{opacity:1;transform:scaleY(1);filter:brightness(1.3)}100%{filter:brightness(1)}}
+
+/* ---- phosphor intensities (as in HST-9) ---- */
+.a-n{color:#FFB000;text-shadow:0 0 1px rgba(255,196,80,.9),0 0 6px rgba(255,150,0,.55),0 0 15px rgba(255,120,0,.22)}
+.a-b{color:#FFD27A;text-shadow:0 0 2px #FFB000,0 0 8px rgba(255,170,0,.85),0 0 20px rgba(255,130,0,.4)}
+.a-m{color:#C88A08;text-shadow:0 0 5px rgba(255,150,0,.32)}
+.a-d{color:#6A4500;text-shadow:0 0 4px rgba(255,140,0,.16)}
+.a-h{color:#FF6A00;text-shadow:0 0 2px #FF7A10,0 0 9px rgba(255,90,0,.75),0 0 20px rgba(255,80,0,.35)}
+.a-i{background:#FFB000;color:#0A0600;box-shadow:0 0 10px rgba(255,160,0,.55);text-shadow:none}
+.a-H{background:#FF6A00;color:#0A0600;box-shadow:0 0 12px rgba(255,100,0,.65);text-shadow:none}
+
+/* ---- status lines ---- */
+#status{white-space:nowrap;overflow:hidden}
+#status div{display:flex;gap:2ch}
+#status .sp{flex:1}
+.blocks{letter-spacing:-.05em}
+
+/* ---- box-ruled panels ---- */
+#main{display:grid;grid-template-columns:minmax(0,1fr) 31ch;grid-template-rows:minmax(0,1fr) minmax(150px,30%);gap:14px 14px;min-height:0}
+.pn{position:relative;border:2px solid #C88A08;min-height:0;display:flex;flex-direction:column;
+  box-shadow:0 0 6px rgba(255,150,0,.35),inset 0 0 6px rgba(255,150,0,.18)}
+.pn>.pt{position:absolute;top:-11px;left:12px;background:var(--tube);padding:0 .6ch;white-space:nowrap;z-index:2}
+.pn>.pr{position:absolute;top:-11px;right:12px;background:var(--tube);padding:0 .6ch;white-space:nowrap;z-index:2}
+#mapP{grid-column:1;grid-row:1}
+#mapbox{flex:1;min-height:0;position:relative;margin:10px 4px 4px}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+#maphint{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:11px;pointer-events:none}
+#termP{grid-column:1;grid-row:2}
+#out{flex:1;overflow-y:auto;margin-top:12px;padding:0 10px;min-height:0;scrollbar-width:none}
+#out::-webkit-scrollbar{display:none}
+#out div{white-space:pre-wrap;word-break:break-word}
+#tut{margin:6px 10px 2px;padding:2px 1ch;white-space:pre-wrap;line-height:1.45}
+#prompt{display:flex;align-items:center;padding:2px 10px 6px}
+#prompt .ps{white-space:pre}
+#cmd{flex:1;min-width:0;background:transparent;border:0;outline:0;font:inherit;padding:0;margin:0;color:#FFD27A;caret-color:#FF6A00;
+  text-shadow:0 0 2px #FFB000,0 0 8px rgba(255,170,0,.85)}
+#side{grid-column:2;grid-row:1/3;display:flex;flex-direction:column;gap:14px;min-height:0;overflow-y:auto;scrollbar-width:none;padding-top:11px}
+#side::-webkit-scrollbar{display:none}
+#side>.pn{flex-shrink:0}
+#cards{display:flex;flex-direction:column;gap:0;padding:12px 8px 6px}
+.card{padding:4px 2px 8px;border-bottom:1px dashed rgba(200,138,8,.45)}
+.card:last-child{border-bottom:0}
+.card .ch{display:flex;gap:1ch;align-items:baseline}
+.card .ch em{margin-left:auto;font-style:normal;padding:0 .5ch}
+.feedw{position:relative;margin:4px 0;height:52px;border:1px solid rgba(200,138,8,.55)}
+.feedw canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+.feedw .ov{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:1px 5px;font-size:11px;line-height:16px}
+.feedw .ov .al{align-self:flex-end;padding:0 .5ch}
+.card .ln{display:flex;justify-content:space-between;white-space:pre}
+#mission{padding:12px 10px 8px}
+#mission p{margin:0 0 4px}
+#mission .big{font-size:24px;line-height:30px;letter-spacing:.08em}
+.legend{display:grid;grid-template-columns:3ch 1fr 3ch 1fr;gap:1px 1ch;align-items:center;margin-top:6px;font-size:12px}
+.legend svg{width:22px;height:14px;overflow:visible}
+
+/* ---- function keys ---- */
+#fkeys{display:flex;gap:1ch;white-space:nowrap;overflow:hidden}
+#fkeys button{flex:1;min-width:0;display:flex;color:inherit;text-shadow:inherit;background:transparent;border:0;padding:0;font:inherit;cursor:pointer;text-align:left;outline:none}
+#fkeys button b{font-weight:400;padding:0 .4ch}
+#fkeys button span{flex:1;padding:0 .6ch;border-bottom:1px solid rgba(200,138,8,.5);overflow:hidden;text-overflow:clip}
+#fkeys button:hover span,#fkeys button:focus-visible span{background:#FFB000;color:#0A0600;text-shadow:none}
+
+/* ---- CRT glass ---- */
+.fx{position:absolute;inset:0;pointer-events:none;border-radius:inherit}
+.scan{background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 1.5px,rgba(0,0,0,.3) 2.2px,rgba(0,0,0,0) 3px);mix-blend-mode:multiply}
+.roll{overflow:hidden}
+.roll::before{content:"";position:absolute;left:0;right:0;top:-22%;height:22%;
+  background:linear-gradient(to bottom,rgba(255,176,0,0),rgba(255,176,0,.045) 55%,rgba(255,200,120,.06) 80%,rgba(255,176,0,0));
+  animation:roll 9s linear infinite}
+@keyframes roll{to{transform:translateY(560%)}}
+.alarm .roll::before{animation-duration:4s}
+.vig{background:radial-gradient(ellipse 78% 72% at 50% 50%,rgba(0,0,0,0) 64%,rgba(0,0,0,.36) 89%,rgba(0,0,0,.7) 100%);
+  box-shadow:inset 0 0 50px 14px rgba(0,0,0,.7),inset 0 0 6px 2px #000}
+.glare{background:radial-gradient(ellipse 34% 24% at 20% 12%,rgba(255,226,180,.05),rgba(255,226,180,0) 70%),
+  radial-gradient(ellipse 60% 14% at 50% 100%,rgba(255,170,60,.03),rgba(0,0,0,0) 80%)}
+.flick{animation:flick 7s steps(1) infinite;background:rgba(255,176,0,.012)}
+@keyframes flick{0%,100%{opacity:1}47%{opacity:.3}48%{opacity:1}73%{opacity:.65}74%{opacity:1}}
+.alarm .flick{animation-duration:1.6s;background:rgba(255,106,0,.03)}
+.beam{opacity:0;background:radial-gradient(ellipse 50% 50% at 50% 50%,#fff2cc 0%,#ffc040 30%,rgba(255,176,0,.35) 60%,rgba(255,176,0,0) 80%);transform:scale(0,.004)}
+.booting .beam{animation:beam .6s ease-out forwards}
+@keyframes beam{0%{transform:scale(.02,.004);opacity:1}38%{transform:scale(1.05,.006);opacity:1}78%{transform:scale(1.05,1);opacity:.55}100%{transform:scale(1.05,1);opacity:0}}
+
+/* ---- chin ---- */
+.chin{position:absolute;left:var(--bz-s);right:var(--bz-s);bottom:0;height:var(--bz-b);display:flex;align-items:center;gap:22px;padding:0 8px}
+.plate{font:700 12px/1 Menlo,Consolas,"Courier New",monospace;letter-spacing:.2em;color:#857868;padding:8px 14px 7px;border-radius:5px;
+  background:linear-gradient(180deg,#221e1a,#1a1714);white-space:nowrap;
+  text-shadow:0 1px 0 rgba(255,240,220,.1),0 -1px 0 rgba(0,0,0,.85);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.7),inset 0 -1px 0 rgba(255,240,220,.04),0 1px 0 rgba(255,240,220,.06)}
+.plate b{color:#9c8d7b;margin-left:.6em}
+.vents{flex:1;height:16px;max-width:260px;margin-left:auto;border-radius:8px;
+  background:repeating-linear-gradient(90deg,#0a0807 0 4px,rgba(0,0,0,0) 4px 10px);box-shadow:0 1px 0 rgba(255,240,220,.05);opacity:.9}
+.ledwrap{display:flex;align-items:center;gap:9px;font:700 11px/1 Menlo,Consolas,monospace;letter-spacing:.16em;color:#7a6e60;
+  text-shadow:0 1px 0 rgba(255,240,220,.08),0 -1px 0 #000}
+.led{width:10px;height:10px;border-radius:50%;background:#FFB000;box-shadow:0 0 0 2px #0d0b09,0 0 6px #FFB000,0 0 16px rgba(255,170,0,.55)}
+.alarm .led{background:#FF6A00;box-shadow:0 0 0 2px #0d0b09,0 0 8px #FF6A00,0 0 20px rgba(255,90,0,.7);animation:pulse .8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35;box-shadow:0 0 0 2px #0d0b09,0 0 2px #FF6A00}}
+
+@media (prefers-reduced-motion: reduce){.roll,.beam,.flick{display:none}.alarm .led{animation:none}.booting #screen{animation:none}}
+@media (max-width:1000px){ #main{grid-template-columns:minmax(0,1fr) 27ch} :root{--fs:12px;--lh:17px} }
+@media (max-width:760px){
+  body{overflow:auto}
+  :root{--bz-t:14px;--bz-s:12px;--bz-b:46px;--fs:12px;--lh:17px}
+  #term{position:relative;inset:auto;margin:6px;min-height:calc(100vh - 12px);border-radius:20px 20px 24px 24px}
+  #term::before{border-radius:18px;left:calc(var(--bz-s) - 5px);right:calc(var(--bz-s) - 5px);top:calc(var(--bz-t) - 5px);bottom:calc(var(--bz-b) - 5px)}
+  .tube{border-radius:14px/18px;flex:none}
+  #screen{position:relative;inset:auto;padding:12px 10px}
+  #main{grid-template-columns:minmax(0,1fr);grid-template-rows:52vh auto 40vh}
+  #mapP{grid-row:1}#side{grid-row:2;grid-column:1;overflow:visible}#termP{grid-row:3}
+  #cards{flex-direction:row;overflow-x:auto;gap:12px}
+  .card{min-width:190px;flex:1;border-bottom:0}
+  #status .hm,.vents,.legend{display:none}
+  #fkeys{flex-wrap:wrap}#fkeys button{flex:1 0 30%}
+  .plate{font-size:10px;padding:6px 9px;letter-spacing:.12em}
+}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<div id="term" class="booting" role="application" aria-label="Salvage control terminal. Type commands to control three drones across a campaign of derelict ships.">
+  <div class="tube" id="tube">
+    <div id="screen">
+      <div id="status">
+        <div><span class="a-b">SALVAGE-OS v2.1</span><span class="a-n hm" id="hShip">—</span><span class="a-m hm">SEED <span id="hSeed">—</span></span><span class="a-m">JUMP <span class="a-b" id="hJump">—</span></span><span class="sp"></span><span class="a-m">T+<span class="a-b" id="hTime">00:00</span></span><span class="a-m hm">OPR: SCT-7 SALVAGE</span></div>
+        <div><span class="a-m">SCRAP <span class="a-b" id="hScrap">0</span></span><span class="a-m">FUEL <span class="a-b blocks" id="hBlocks"></span> <span class="a-b" id="hFuel">0</span></span><span class="a-m">DRONES <span class="a-b" id="hDr">3/3</span></span><span class="a-m hm">SURVEYED <span class="a-b" id="mapStat">—</span></span><span class="sp"></span><span id="hAlert" class="a-m">AWAITING ORDERS</span></div>
+      </div>
+      <div id="main">
+        <section class="pn" id="mapP">
+          <span class="pt a-b" id="mapTitle">[ SALVAGE-OS ]</span><span class="pr a-m" id="mapSub">SCT-7</span>
+          <div id="mapbox"><canvas id="map" aria-label="Ship schematic map"></canvas></div>
+          <div id="maphint" class="a-d">' toggles labels · click a room or door to insert it</div>
+        </section>
+        <section class="pn" id="termP">
+          <span class="pt a-b">[ COMMAND LINK ]</span><span class="pr a-d">TAB COMPLETE · ↑↓ HISTORY · ; CHAINS</span>
+          <div id="out" role="log" aria-live="polite"></div>
+          <div id="tut" class="a-i" hidden></div>
+          <label id="prompt"><span class="ps a-n">SCT-7:\DRONE&gt; </span><input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Command input" autofocus></label>
+        </section>
+        <aside id="side">
+          <section class="pn"><span class="pt a-b">[ DRONE FEEDS ]</span><div id="cards"></div></section>
+          <section class="pn"><span class="pt a-b">[ FLEET ]</span>
+            <div id="mission">
+              <p class="big a-b" id="mBig">STANDBY</p>
+              <p class="a-n" id="mObj"></p>
+              <p id="mCargo" class="a-m"></p>
+              <p id="mBest" class="a-d"></p>
+              <div class="legend a-m">
+                <svg viewBox="0 0 22 14"><rect x="3" y="2" width="16" height="10" fill="none" stroke="#6A4500" stroke-width="1.6"/></svg><span>unsurveyed</span>
+                <svg viewBox="0 0 22 14"><rect x="3" y="2" width="16" height="10" fill="none" stroke="#FFB000" stroke-width="1.6"/></svg><span>surveyed</span>
+                <svg viewBox="0 0 22 14"><rect x="5" y="1" width="12" height="12" fill="none" stroke="#C88A08" stroke-dasharray="2 2"/></svg><span>door shut</span>
+                <svg viewBox="0 0 22 14"><rect x="5" y="1" width="12" height="12" fill="rgba(255,176,0,.3)" stroke="#FFB000"/></svg><span>door open</span>
+                <svg viewBox="0 0 22 14"><rect x="5" y="1" width="12" height="12" fill="#FFD27A"/></svg><span>drone</span>
+                <svg viewBox="0 0 22 14"><rect x="8" y="4" width="6" height="6" fill="none" stroke="#FFB000" stroke-width="1.6"/><rect x="10" y="6" width="2" height="2" fill="#FFB000"/></svg><span>salvage</span>
+                <svg viewBox="0 0 22 14"><circle cx="11" cy="7" r="5" fill="none" stroke="#FFD27A" stroke-width="1.6"/><circle cx="11" cy="7" r="2" fill="#FFD27A"/></svg><span>fuel cell</span>
+                <svg viewBox="0 0 22 14"><path d="M11 1 L19 13 L3 13Z" fill="none" stroke="#FF6A00" stroke-width="1.6"/></svg><span>radiation</span>
+                <svg viewBox="0 0 22 14"><circle cx="11" cy="7" r="5" fill="none" stroke="#C88A08" stroke-dasharray="2 1.5"/></svg><span>purge valve</span>
+                <svg viewBox="0 0 22 14"><circle cx="11" cy="7" r="4.5" fill="#FF6A00"/></svg><span>lifeform</span>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+      <div id="fkeys" class="a-n"></div>
+    </div>
+    <div class="fx scan"></div><div class="fx roll"></div><div class="fx flick"></div><div class="fx vig"></div><div class="fx glare"></div><div class="fx beam"></div>
+  </div>
+  <div class="chin">
+    <span class="plate">SALVAGE CONTROL TERMINAL<b>SCT-7</b></span>
+    <span class="vents"></span>
+    <span class="ledwrap">PWR <span class="led"></span></span>
+  </div>
+</div>
+<script>
+'use strict';
+const C = { n:'#FFB000', hi:'#FFD27A', mid:'#C88A08', dim:'#6A4500', hot:'#FF6A00', tube:'#0A0600' };
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const cv = $('map'), ctx = cv.getContext('2d');
+const out = $('out'), cmd = $('cmd');
+const SAVE_KEY='ddo-campaign-v1', BEST_KEY='ddo-best-v1', TUT_KEY='ddo-tutorial-done';
+const store = { get(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }, del(k){ try{ localStorage.removeItem(k); }catch(e){} } };
+
+/* ---------- utilities ---------- */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let R = Math.random;
+const ri = n => Math.floor(R()*n);
+const shuffle = a => { for (let i=a.length-1;i>0;i--){const j=ri(i+1);[a[i],a[j]]=[a[j],a[i]];} return a; };
+const dist = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
+const fmtT = s => String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0');
+const bar=(f,n)=>{ const c=Math.round(Math.max(0,Math.min(1,f))*n); return '█'.repeat(c)+'░'.repeat(n-c); };
+const pips=(n,max)=>'■'.repeat(n)+'□'.repeat(max-n);
+
+/* ---------- audio (off until SOUND) ---------- */
+let AC=null, soundOn=false;
+function tone(f=600,d=.07,v=.04,type='square',when=0){ if(!soundOn||!AC) return; const t=AC.currentTime+when,o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+d+.02); }
+const sfx = {
+  key:()=>tone(1400,.02,.012), ok:()=>tone(880,.06,.03), err:()=>tone(220,.12,.04),
+  door:()=>{tone(140,.18,.05,'sawtooth');tone(90,.2,.04,'triangle',.05);},
+  alarm:()=>{tone(1040,.12,.05);tone(760,.14,.05,'square',.15);tone(1040,.12,.05,'square',.3);},
+  ping:()=>{tone(1800,.25,.03,'sine');tone(1200,.3,.02,'sine',.12);}, boom:()=>tone(60,.5,.08,'sawtooth'),
+  jump:()=>{ for(let i=0;i<8;i++) tone(200+i*120,.12,.03,'triangle',i*.06); }
+};
+
+/* ---------- campaign data ---------- */
+const SHIPS=['BULK HAULER ORISON-7','ORE TENDER MALLOW','COLONY BARGE TEMPERANCE','SURVEY CUTTER HALCYON','REEFER FREIGHTER OSTARA','TUG KESTREL-9','LINER CALLISTO GRACE','DREDGER SABLE WREN','MAIL PACKET ISOLDE','HOSPITAL FRIGATE MERCY ANN','TANKER GREY HERON','RESEARCH HULK VESTA DEEP'];
+const ROLES=[{name:'WREN',mod:'MOTION'},{name:'MOTH',mod:'SHIELD'},{name:'BUOY',mod:'LURE'}];
+const baseDrones=()=>ROLES.map((r,i)=>({id:i+1,name:r.name,mod:r.mod,hull:100,alive:true,armour:0,thrust:0,mk2:false}));
+const PRICE={repairPer25:1, rebuild:6, armour:4, thrust:3, mk2:5, fuel:5};
+const MK2TXT={MOTION:'scan reaches 5 rooms, recharges in 5 s',SHIELD:'gathers 3× faster, +1 armour plate',LURE:'decoy lasts 14 s and pulls from farther'};
+
+function diffFor(j){ return {
+  W:Math.min(40,26+2*j), H:Math.min(24,16+j), creatures:Math.min(7,1+j), rad:Math.min(4,Math.floor((j+1)/2)), purge:2+(j>2?1:0),
+  scrap:7+2*j, fuel:j<4?2:1+(Math.random()<.5?1:0), openP:.15, remove:.17,
+  chase:Math.min(2.3,1.75+.06*j), wander:1.2, dmg:Math.min(75,40+6*j) }; }
+const TUT_DIFF={W:20,H:13,creatures:1,rad:0,purge:1,scrap:0,fuel:0,openP:0,remove:0,chase:1.7,wander:1,dmg:40};
+
+let CAMP=null;      // persistent campaign {seed,jump,fuel,scrap,drones,stats}
+let G=null;         // current mission
+let MODE='menu';    // menu | mission | drydock | over
+let OVER=null;      // {reason, jump, scrap}
+let stars=[];
+
+/* ---------- world generation ---------- */
+function generate(seed,o){
+  R = mulberry(seed);
+  const W=o.W,H=o.H; let leaves=[];
+  (function split(n){
+    const canV=n.w>=8, canH=n.h>=8, area=n.w*n.h;
+    if((!canV&&!canH) || area<=24 || (area<=48 && R()<.7)) { leaves.push(n); return; }
+    let vert = canV && (!canH || (n.w/n.h>1.3 ? true : n.h/n.w>1.3 ? false : R()<.5));
+    if(vert){ const s=4+ri(n.w-7); split({x:n.x,y:n.y,w:s,h:n.h}); split({x:n.x+s,y:n.y,w:n.w-s,h:n.h}); }
+    else    { const s=4+ri(n.h-7); split({x:n.x,y:n.y,w:n.w,h:s}); split({x:n.x,y:n.y+s,w:n.w,h:n.h-s}); }
+  })({x:0,y:0,w:W,h:H});
+  const edgesOf = ls => { const E=[]; for(let i=0;i<ls.length;i++) for(let j=i+1;j<ls.length;j++){ const A=ls[i],B=ls[j];
+      if(A.x+A.w===B.x||B.x+B.w===A.x){ const x=A.x+A.w===B.x?B.x:A.x, y0=Math.max(A.y,B.y), y1=Math.min(A.y+A.h,B.y+B.h); if(y1-y0>=3) E.push({a:i,b:j,x,y:(y0+y1)/2,o:'v'}); }
+      else if(A.y+A.h===B.y||B.y+B.h===A.y){ const y=A.y+A.h===B.y?B.y:A.y, x0=Math.max(A.x,B.x), x1=Math.min(A.x+A.w,B.x+B.w); if(x1-x0>=3) E.push({a:i,b:j,x:(x0+x1)/2,y,o:'h'}); } }
+    return E; };
+  const connected = ls => { const E=edgesOf(ls), seen=new Set([0]), q=[0]; while(q.length){const n=q.shift(); for(const e of E){const ot=e.a===n?e.b:e.b===n?e.a:-1; if(ot>=0&&!seen.has(ot)){seen.add(ot);q.push(ot);}}} return seen.size===ls.length; };
+  const cands = leaves.filter(l=>l.x===0&&l.h>=4).sort((a,b)=>Math.abs(a.y+a.h/2-H/2)-Math.abs(b.y+b.h/2-H/2));
+  const startLeaf = cands[0]; startLeaf.keep=true;
+  let toRemove = Math.floor(leaves.length*o.remove), tries=60;
+  while(toRemove>0 && tries-->0){ const i=ri(leaves.length); if(leaves[i].keep) continue; const nl=leaves.filter((_,k)=>k!==i); if(connected(nl)){ leaves=nl; toRemove--; } }
+  const E = shuffle(edgesOf(leaves)), parent=leaves.map((_,i)=>i), find=i=>parent[i]===i?i:(parent[i]=find(parent[i]));
+  const doors=[];
+  for(const e of E){ const ra=find(e.a), rb=find(e.b); if(ra!==rb){ parent[ra]=rb; doors.push(e); } else if(R()<.28) doors.push(e); }
+  const rooms = leaves.map(L=>({x:L.x,y:L.y,w:L.w,h:L.h,cx:L.x+L.w/2,cy:L.y+L.h/2,seen:false,items:[],rad:false,purge:false,purgeUsed:false,radWarn:false}));
+  const nums = shuffle(rooms.map((_,i)=>i+1)); rooms.forEach((r,i)=>r.num=nums[i]);
+  const dnums = shuffle(doors.map((_,i)=>i+1));
+  doors.forEach((d,i)=>{ d.num=dnums[i]; d.name='d'+d.num; d.open=R()<o.openP; d.air=false; d.bump=0; });
+  const DOCK = rooms.length, si = leaves.indexOf(startLeaf), ay = startLeaf.y+startLeaf.h/2;
+  doors.push({a:si,b:DOCK,x:0,y:ay,o:'v',num:1,name:'a1',open:true,air:true,bump:0});
+  const dock = {x:-4.6,y:ay-1.7,w:3.6,h:3.4,cx:-2.8,cy:ay};
+  const adj = Array.from({length:rooms.length+1},()=>[]);
+  doors.forEach((d,i)=>{ adj[d.a].push({door:i,to:d.b}); adj[d.b].push({door:i,to:d.a}); });
+  const dd = rooms.map(()=>Infinity); dd[si]=0; { const q=[si]; while(q.length){const n=q.shift(); for(const e of adj[n]) if(e.to<DOCK&&dd[e.to]===Infinity){dd[e.to]=dd[n]+1;q.push(e.to);}} }
+  const spot = r => ({x:r.x+1.1+R()*(r.w-2.2), y:r.y+1.1+R()*(r.h-2.2)});
+  const g = { seed, rooms, doors, adj, dock, DOCK, start:si, dd, creatures:[], spot };
+  if(!o.tutorial){
+    const pool = (min,ex=[]) => shuffle(rooms.map((_,i)=>i).filter(i=>dd[i]>=min&&!ex.includes(i)));
+    const rad = pool(2).slice(0,o.rad); rad.forEach(i=>rooms[i].rad=true);
+    pool(1,rad).slice(0,o.purge).forEach(i=>rooms[i].purge=true);
+    const far = rooms.map((_,i)=>i).sort((a,b)=>dd[b]-dd[a])[0];
+    rooms[far].items.push({...spot(rooms[far]),v:3,kind:'core'});
+    let left=o.scrap; const sp=pool(1,[far]);
+    for(let k=0;left>0&&sp.length&&k<sp.length*3;k++){ const r=rooms[sp[k%sp.length]]; const v=Math.min(left,1+ri(2)); r.items.push({...spot(r),v,kind:'scrap'}); left-=v; }
+    let fp=pool(2); if(!fp.length) fp=pool(1); fp.slice(0,o.fuel).forEach(i=>rooms[i].items.push({...spot(rooms[i]),v:1,kind:'fuel'}));
+    let lp = pool(3); if(lp.length<o.creatures) lp = pool(2); if(!lp.length) lp=pool(1);
+    for(let k=0;k<o.creatures;k++){ const i=lp[k%lp.length]; g.creatures.push(newCreature(spot(rooms[i]),i)); }
+    if(!g.creatures.some(c=>c.node===far) && dd[far]>=3 && g.creatures.length) Object.assign(g.creatures[g.creatures.length-1],{...spot(rooms[far]),node:far});
+  }
+  R = Math.random;
+  return g;
+}
+function newCreature(p,node){ return {...p,node,path:[],alive:true,think:2+Math.random()*4,hunt:0,vis:false,ph:Math.random()*6,dir:0}; }
+
+function setupMission(g,o,drones,extra){
+  Object.assign(g,{ o, drones, bank:{scrap:0,fuel:0}, t:0, fx:[], lure:null, motionCd:0, end:null, labels:G?G.labels:true, undockArm:false, menuArm:false, flags:{}, tut:null }, extra||{});
+  drones.forEach(d=>{ Object.assign(d,{x:null,y:null,node:g.DOCK,path:[],state:d.alive?'DOCKED':'LOST',cargo:0,fuelC:0,gt:0,dir:0,hitT:0,dest:null,wreck:false});
+    if(d.alive){ const s=slot(d,g.DOCK,g); d.x=s.x; d.y=s.y; } });
+  return g;
+}
+function slot(d,node,g=G){
+  const r = node===g.rooms.length ? g.dock : g.rooms[node];
+  const off=[[-.75,-.55],[.75,-.55],[0,.65]][d.id-1];
+  const mx=Math.max(0,(r.w-1)/2-.6), my=Math.max(0,(r.h-1)/2-.6);
+  return {x:r.cx+Math.max(-mx,Math.min(mx,off[0])), y:r.cy+Math.max(-my,Math.min(my,off[1]))};
+}
+const nodeName = n => n===G.DOCK ? 'dock' : 'r'+G.rooms[n].num;
+const roomByNum = num => G.rooms.findIndex(r=>r.num===num);
+const doorByName = nm => G.doors.findIndex(d=>d.name===nm);
+const dmgMul = d => (d.mod==='SHIELD'?.5:1)*(1-.22*Math.min(3,d.armour+(d.mod==='SHIELD'&&d.mk2?1:0)));
+const speedOf = d => 2.7*(1+.15*d.thrust);
+
+function findPath(from,to,{open=true,noDock=false}={}){
+  if(from===to) return [];
+  const prev=new Map([[from,null]]), q=[from];
+  while(q.length){ const n=q.shift(); for(const e of G.adj[n]){ const d=G.doors[e.door];
+      if(open&&!d.open) continue; if(noDock&&e.to===G.DOCK) continue; if(prev.has(e.to)) continue;
+      prev.set(e.to,{n,door:e.door}); q.push(e.to); } if(prev.has(to)) break; }
+  if(!prev.has(to)) return null;
+  const seq=[]; let cur=to; while(cur!==from){ const p=prev.get(cur); seq.unshift({door:p.door,to:cur}); cur=p.n; }
+  return seq;
+}
+const toWaypoints = seq => seq.map(s=>({x:G.doors[s.door].x,y:G.doors[s.door].y,door:s.door,to:s.to}));
+
+/* ---------- terminal ---------- */
+const KCLS={e:'a-b',s:'a-m',ok:'a-n',w:'a-h',x:'a-h',X:'a-H',d:'a-n',h:'a-b',a:'a-b',I:'a-i'};
+function log(text, k='s'){ const el=document.createElement('div'); el.className=KCLS[k]||'a-n'; if(k==='X'||k==='I') el.style.display='table'; el.textContent=text; out.appendChild(el);
+  while(out.children.length>400) out.firstChild.remove(); out.scrollTop=out.scrollHeight; }
+const typeTimers=[];
+function typeLines(lines){ typeTimers.forEach(clearTimeout); typeTimers.length=0; let delay=0; for(const [t,k] of lines){ if(RM){log(t,k);continue;} typeTimers.push(setTimeout(()=>log(t,k),delay)); delay+=120; } }
+
+const HELP_MISSION = [
+ ['MISSION COMMANDS — drones 1 2 3 (or "all"), rooms rN, doors dN, airlock a1','h'],
+ ['  nav <drones> <room>     move along open doors          nav 1 2 r5  ·  nav all dock','s'],
+ ['  open / close <doors>    work doors (a door cannot close on something in its frame)','s'],
+ ['  gather <drones>         collect salvage and fuel cells in the drone\'s room','s'],
+ ['  motion                  WREN (1) scans for lifeforms through walls','s'],
+ ['  lure 3                  BUOY (3) sounds a decoy; lifeforms come to it','s'],
+ ['  purge <room>            fire a surveyed purge valve — kills everything inside, once','s'],
+ ['  stop <drones>   status   undock   labels   sound   clear   menu','s'],
+ ['Cargo only counts once a drone brings it into the dock. Drones left aboard at UNDOCK are lost.','a'],
+];
+const HELP_DRY = [
+ ['DRYDOCK COMMANDS','h'],
+ [`  repair <drones|all>     ${PRICE.repairPer25} scrap per 25% hull`,'s'],
+ [`  rebuild <drone>         ${PRICE.rebuild} scrap — replace a lost drone (bare, no upgrades)`,'s'],
+ [`  upgrade <drone> armour  ${PRICE.armour} scrap, max 2 — each plate cuts damage ~22%`,'s'],
+ [`  upgrade <drone> thrust  ${PRICE.thrust} scrap, max 2 — +15% speed each`,'s'],
+ [`  upgrade <drone> mk2     ${PRICE.mk2} scrap, once — improves the drone's own module`,'s'],
+ [`  buy fuel                ${PRICE.fuel} scrap — one jump's worth`,'s'],
+ ['  jump                    burn 1 fuel, tether to the next derelict      status   menu','s'],
+];
+
+/* ---------- modes ---------- */
+const FKS = {
+  menu:   [['TUTORIAL','1'],['CAMPAIGN','2'],['CONTINUE','3'],null,null,null,null,['SND','sound'],null],
+  mission:[['HELP','help'],['STATUS','status'],['MOTION','motion'],['LURE','lure 3'],['STOP','stop all'],['RECALL','nav all dock'],['LABELS','labels'],['SND','sound'],['MENU','menu']],
+  drydock:[['HELP','help'],['STATUS','status'],['REPAIR','repair all'],['FUEL','buy fuel'],null,null,['JUMP','jump'],['SND','sound'],['MENU','menu']],
+  over:   [['TUTORIAL','tutorial'],['CAMPAIGN','campaign'],null,null,null,null,null,['SND','sound'],['MENU','menu']],
+};
+function setMode(m){ MODE=m; G&&(G.menuArm=false); buildFkeys(); buildCards(); resize();
+  $('mapTitle').textContent = m==='drydock'?'[ DRYDOCK ]':m==='mission'?'[ SCHEMATIC ]':'[ SALVAGE-OS ]';
+  $('maphint').style.visibility = m==='mission'?'visible':'hidden';
+  $('tut').hidden = !(m==='mission'&&G&&G.tut);
+  document.querySelector('.legend').style.display = m==='mission'?'':'none';
+}
+
+function showMenu(){
+  G=null; OVER=null; setMode('menu'); out.innerHTML='';
+  const save=store.get(SAVE_KEY), best=store.get(BEST_KEY), tutDone=store.get(TUT_KEY);
+  $('hShip').textContent='NO TETHER'; $('hSeed').textContent='—';
+  const lines=[
+    ['SCT-7 SALVAGE CONTROL TERMINAL · SALVAGE-OS v2.1','h'],
+    ['Three drones, one tug, and a long list of dead ships nobody else wants to board.','s'],
+    ['',''],
+    [`  1  TUTORIAL        a guided first boarding${tutDone?' (completed)':' — recommended'}`, tutDone?'ok':'h'],
+    ['  2  NEW CAMPAIGN    jump from derelict to derelict until the fuel or the drones run out','ok'],
+  ];
+  if(save) lines.push([`  3  CONTINUE        jump ${save.jump} · ${save.scrap} scrap · ${save.fuel} fuel · ${save.drones.filter(d=>d.alive).length}/3 drones`,'ok']);
+  if(best) lines.push(['',''],[`Best run: ${best.jump} derelicts cleared · ${best.scrap} scrap salvaged`,'s']);
+  lines.push(['',''],['Type a number (or its name) and press Enter.','s']);
+  typeLines(lines);
+}
+
+function startTutorial(){
+  let seed=11, g;
+  for(;;seed++){ g=generate(seed,{...TUT_DIFF,tutorial:true});
+    const S=g.start, nb=g.adj[S].filter(e=>e.to!==g.DOCK);
+    const far=g.rooms.map((_,i)=>i).filter(i=>g.dd[i]>=2).sort((a,b)=>g.dd[b]-g.dd[a])[0];
+    if(nb.length && far!==undefined){ g.tN=nb[0].to; g.tDoor=nb[0].door; g.tL=far; break; } }
+  const N=g.tN, L=g.tL, rN=g.rooms[N];
+  rN.items.push({...g.spot(rN),v:1,kind:'scrap'},{...g.spot(rN),v:1,kind:'scrap'});
+  const others=g.rooms.map((_,i)=>i).filter(i=>i!==N&&i!==L&&i!==g.start);
+  if(others.length){ const f=g.rooms[others[0]]; f.items.push({...g.spot(f),v:1,kind:'fuel'}); }
+  g.rooms[L].items.push({...g.spot(g.rooms[L]),v:3,kind:'core'}); g.rooms[L].purge=true;
+  g.creatures.push(newCreature(g.spot(g.rooms[L]),L));
+  G=setupMission(g,TUT_DIFF,baseDrones(),{ship:'TRAINING HULK PRIMER',tutorial:true});
+  const S=g.start, rs='r'+g.rooms[S].num, rn='r'+rN.num, dn=g.doors[g.tDoor].name, rl='r'+g.rooms[L].num;
+  G.tut={i:0, steps:[
+    {t:`Every order is typed. Send drone 1 into the first room:   nav 1 ${rs}`, ok:()=>G.drones[0].node===S&&!G.drones[0].path.length, tg:{room:S}},
+    {t:`Surveyed rooms glow brighter. Doors start shut — open the way on:   open ${dn}`, ok:()=>G.doors[g.tDoor].open, tg:{door:g.tDoor}},
+    {t:`Before going in, listen. WREN carries a motion scanner:   motion`, ok:()=>G.flags.motion, tg:null},
+    {t:`Quiet nearby. Salvage was sighted in ${rn}. Send MOTH:   nav 2 ${rn}`, ok:()=>G.drones[1].node===N&&!G.drones[1].path.length, tg:{room:N}},
+    {t:`Pick it up:   gather 2`, ok:()=>G.drones[1].cargo>0, tg:null},
+    {t:`Cargo only counts once it's in the dock. Bring it home:   nav 2 dock`, ok:()=>G.bank.scrap>0, tg:{dock:true}},
+    {t:`Something sleeps in ${rl} beside a data core. Lifeforms can't pass closed doors; a purge valve there kills anything inside. Explore, then:   nav all dock   and   undock`, ok:()=>false, tg:{room:L}},
+  ]};
+  startMissionCommon([
+    ['TRAINING TETHER: TRAINING HULK PRIMER. Simulated hazards; real lessons.','h'],
+    ['Follow the highlighted line under the log. The map pulses where to look.','s'],
+  ]);
+}
+
+function newCampaign(){
+  CAMP={seed:(Math.random()*1e6)|0, jump:0, fuel:1, scrap:0, drones:baseDrones(), stats:{scrap:0,rooms:0,kills:0}};
+  log('New campaign. The tug burns its first fuel cell toward a derelict…','h');
+  jumpNext(true);
+}
+function continueCampaign(){ const s=store.get(SAVE_KEY); if(!s){ log('No saved campaign.','w'); return; } CAMP=s; enterDrydock(true); }
+
+function jumpNext(first){
+  if(CAMP.fuel<1){ log('No fuel. BUY FUEL or the tug drifts.','w'); sfx.err(); return; }
+  if(!CAMP.drones.some(d=>d.alive)){ log('No working drones. REBUILD one first.','w'); sfx.err(); return; }
+  CAMP.fuel--; CAMP.jump++; sfx.jump();
+  const o=diffFor(CAMP.jump), seed=(CAMP.seed+CAMP.jump*7919)%999983;
+  const g=generate(seed,o);
+  G=setupMission(g,o,CAMP.drones,{ship:SHIPS[(CAMP.seed+CAMP.jump)%SHIPS.length]});
+  const firstDoor=G.doors.find(d=>!d.air&&(d.a===G.start||d.b===G.start));
+  startMissionCommon([
+    [`JUMP ${CAMP.jump} · HARD TETHER ESTABLISHED WITH ${G.ship}.`,'h'],
+    [`Hull reads cold. ${o.creatures} biological trace${o.creatures>1?'s':''} on the long-range sweep${o.rad?`, ${o.rad} radiation leak${o.rad>1?'s':''}`:''}.`,'w'],
+    [`Fuel left after this jump: ${CAMP.fuel}. Find fuel cells (◎) or buy fuel with scrap at the drydock.`,'ok'],
+    [first?`TYPE HELP OR PRESS F1.  Try:  nav 1 r${G.rooms[G.start].num}  ·  open ${firstDoor?firstDoor.name:'d1'}  ·  motion`:'Drones standing by in the dock behind a1.','s'],
+  ]);
+}
+function startMissionCommon(lines){
+  out.innerHTML=''; setMode('mission');
+  $('hShip').textContent='TETHER: '+G.ship; $('hSeed').textContent=G.seed; $('mapSub').textContent=G.ship;
+  typeLines(lines);
+  if(G.tut) showTut();
+}
+function showTut(){ const s=G.tut.steps[G.tut.i]; $('tut').hidden=false; $('tut').textContent=`TUTORIAL ${G.tut.i+1}/${G.tut.steps.length} ▸ ${s.t}`; }
+
+function finishMission(kind){
+  if(G.end) return;
+  G.end=kind; typeTimers.forEach(clearTimeout);
+  const away=G.drones.filter(d=>d.alive&&d.node!==G.DOCK);
+  if(kind==='undock') away.forEach(d=>{ d.alive=false; d.state='LOST'; log(`${d.name} left aboard ${G.ship}. Signal fades.`,'x'); });
+  const sv=G.rooms.filter(r=>r.seen).length, kills=G.creatures.filter(c=>!c.alive).length;
+  if(kind==='undock'){ log(`════════ UNDOCKED FROM ${G.ship} ════════`,'h'); sfx.ping(); } else log('════════ ALL DRONE SIGNALS LOST — TUG CASTS OFF ════════','X');
+  log(`Recovered ${G.bank.scrap} scrap, ${G.bank.fuel} fuel · ${sv}/${G.rooms.length} rooms surveyed · T+${fmtT(G.t)}`,'h');
+  if(G.tutorial){
+    store.set(TUT_KEY,true); $('tut').hidden=true;
+    log(kind==='undock'?'Tutorial complete. The real derelicts are bigger, darker and less forgiving.':'Training drones lost. That is the lesson: close doors behind you.', 'a');
+    setTimeout(showMenu, 3200); return;
+  }
+  CAMP.scrap+=G.bank.scrap; CAMP.fuel+=G.bank.fuel; CAMP.stats.scrap+=G.bank.scrap; CAMP.stats.rooms+=sv; CAMP.stats.kills+=kills;
+  setTimeout(()=>enterDrydock(false), 2600);
+}
+
+function enterDrydock(resumed){
+  G=null; out.innerHTML=''; setMode('drydock');
+  $('hShip').textContent='DRYDOCK · IN TRANSIT'; $('hSeed').textContent=CAMP.seed; $('mapSub').textContent=`AFTER JUMP ${CAMP.jump}`;
+  const alive=CAMP.drones.filter(d=>d.alive).length, need=(CAMP.fuel>0?0:PRICE.fuel)+(alive>0?0:PRICE.rebuild);
+  if(CAMP.scrap<need){ gameOver(alive?'STRANDED — NO FUEL, NO SCRAP TO BUY ANY':'FLEET LOST — NO DRONES, NO SCRAP TO BUILD ONE'); return; }
+  store.set(SAVE_KEY,CAMP);
+  typeLines([
+    [resumed?`Campaign restored · jump ${CAMP.jump}.`:`Tug clear of the derelict. Drydock systems online.`,'h'],
+    [`Scrap ${CAMP.scrap} · fuel ${CAMP.fuel} · drones ${alive}/3. Spend scrap on repairs, rebuilds and upgrades.`,'ok'],
+    [CAMP.fuel>0?'Type JUMP (F7) when ready. Progress saves here automatically.':`No fuel — BUY FUEL (${PRICE.fuel} scrap) before you can jump.`, CAMP.fuel>0?'s':'w'],
+    ['Type HELP for drydock commands.','s'],
+  ]);
+}
+function gameOver(reason){
+  const best=store.get(BEST_KEY)||{jump:0,scrap:0}, cleared=Math.max(0,CAMP.jump);
+  if(cleared>best.jump||(cleared===best.jump&&CAMP.stats.scrap>best.scrap)) store.set(BEST_KEY,{jump:cleared,scrap:CAMP.stats.scrap});
+  store.del(SAVE_KEY); OVER={reason, jump:cleared, scrap:CAMP.stats.scrap, rooms:CAMP.stats.rooms, kills:CAMP.stats.kills};
+  G=null; setMode('over'); sfx.boom();
+  typeLines([
+    [` CAMPAIGN OVER — ${reason} `,'X'],
+    [`Derelicts boarded: ${OVER.jump} · scrap salvaged: ${OVER.scrap} · rooms surveyed: ${OVER.rooms} · lifeforms killed: ${OVER.kills}`,'h'],
+    ['Type CAMPAIGN to start again, TUTORIAL, or MENU.','s'],
+  ]);
+}
+
+/* ---------- commands ---------- */
+const ALIAS = {n:'nav',navigate:'nav',go:'nav',move:'nav',o:'open',c:'close',g:'gather',m:'motion',scan:'motion',l:'lure',p:'purge',vent:'purge',s:'stop',st:'status','?':'help',h:'help',cls:'clear',label:'labels',icons:'labels',leave:'undock',fix:'repair',build:'rebuild',up:'upgrade',buy:'buy',quit:'menu',title:'menu'};
+const CMDS = { mission:['nav','open','close','gather','motion','lure','purge','stop','status','undock','labels','sound','clear','help','menu'],
+  drydock:['repair','rebuild','upgrade','buy','jump','status','sound','clear','help','menu','armour','thrust','mk2','fuel','all'],
+  menu:['tutorial','campaign','continue','sound','clear'], over:['tutorial','campaign','menu','sound','clear'] };
+
+function parseDrones(toks,list){ const ids=new Set(); const rest=[];
+  for(const t of toks){ if(t==='all'||t==='a') list.forEach(d=>ids.add(d.id)); else if(/^[123]$/.test(t)) ids.add(+t); else if(/^[123]{2,3}$/.test(t)) [...t].forEach(c=>ids.add(+c));
+    else { const byName=list.find(d=>d.name.toLowerCase()===t); if(byName) ids.add(byName.id); else rest.push(t); } }
+  return {ids:[...ids].sort(), rest}; }
+
+function run(line){ line.split(';').map(s=>s.trim()).filter(Boolean).forEach(exec); }
+function exec(line){
+  const toks=line.toLowerCase().replace(/,/g,' ').split(/\s+/).filter(Boolean); if(!toks.length) return;
+  const c=ALIAS[toks[0]]||toks[0], args=toks.slice(1);
+  if(c==='sound'){ soundOn=!soundOn; if(soundOn&&!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } log(`Sound ${soundOn?'on':'off'}.`); sfx.ok(); return; }
+  if(c==='clear'){ out.innerHTML=''; return; }
+  if(MODE==='menu'||MODE==='over') return execMenu(c,args);
+  if(MODE==='drydock') return execDry(c,args);
+  return execMission(c,args,toks[0]);
+}
+function execMenu(c){
+  if(c==='1'||c==='tutorial'||c==='tutor') return startTutorial();
+  if(c==='2'||c==='campaign'||c==='new'||c==='newgame') return newCampaign();
+  if((c==='3'||c==='continue'||c==='load') && MODE==='menu') return continueCampaign();
+  if(c==='menu') return showMenu();
+  if(c==='help'){ log('Type 1 (tutorial), 2 (new campaign) or 3 (continue).','s'); return; }
+  log(`Unknown option "${c}".`,'x'); sfx.err();
+}
+function spend(n,what){ if(CAMP.scrap<n){ log(`${what}: needs ${n} scrap, you have ${CAMP.scrap}.`,'w'); sfx.err(); return false; } CAMP.scrap-=n; return true; }
+function execDry(c,args){
+  const D=CAMP.drones;
+  switch(c){
+    case 'help': HELP_DRY.forEach(([t,k])=>log(t,k)); return;
+    case 'status': D.forEach(d=>log(`  ${d.id} ${d.name.padEnd(5)} ${d.mod.padEnd(7)} ${d.alive?`hull ${String(Math.ceil(d.hull)).padStart(3)}%  armour ${pips(d.armour,2)}  thrust ${pips(d.thrust,2)}  mk2 ${d.mk2?'■':'□'}`:'— LOST'}`, d.alive?'d':'x'));
+      log(`  scrap ${CAMP.scrap} · fuel ${CAMP.fuel} · jump ${CAMP.jump}`,'h'); return;
+    case 'repair': { const {ids}=parseDrones(args.length?args:['all'],D); let any=false;
+      for(const id of ids){ const d=D[id-1]; if(!d.alive){ log(`${d.name} is lost — REBUILD ${id} instead.`,'w'); continue; }
+        const miss=100-d.hull; if(miss<1){ continue; } const cost=Math.ceil(miss/25)*PRICE.repairPer25;
+        if(!spend(cost,`Repair ${d.name}`)) break; d.hull=100; any=true; log(`${d.name} hull restored to 100% (−${cost} scrap).`,'ok'); }
+      if(!any) log('Nothing repaired.','s'); else sfx.ok(); break; }
+    case 'rebuild': { const id=+args[0]; const d=D[id-1]; if(!d){ log('Usage: rebuild <drone>','x'); return; }
+      if(d.alive){ log(`${d.name} is still flying.`,'s'); return; }
+      if(!spend(PRICE.rebuild,`Rebuild ${d.name}`)) return; Object.assign(d,{alive:true,hull:100,armour:0,thrust:0,mk2:false}); log(`${d.name} rebuilt from the parts bin (−${PRICE.rebuild} scrap).`,'ok'); sfx.ok(); break; }
+    case 'upgrade': case 'armour': case 'armor': case 'thrust': case 'mk2': {
+      let a=args.slice(); let kind=c==='upgrade'?null:c;
+      const {ids,rest}=parseDrones(a,D); kind=kind||rest[0]; if(kind==='armor') kind='armour';
+      if(!ids.length||!['armour','thrust','mk2'].includes(kind)){ log('Usage: upgrade <drone> armour|thrust|mk2','x'); sfx.err(); return; }
+      for(const id of ids){ const d=D[id-1]; if(!d.alive){ log(`${d.name} is lost.`,'w'); continue; }
+        if(kind==='mk2'){ if(d.mk2){ log(`${d.name} already MK2.`,'s'); continue; } if(!spend(PRICE.mk2,`${d.name} MK2`)) break; d.mk2=true; log(`${d.name} MK2: ${MK2TXT[d.mod]}.`,'ok'); }
+        else { if(d[kind]>=2){ log(`${d.name} ${kind} already at max.`,'s'); continue; } if(!spend(PRICE[kind],`${d.name} ${kind}`)) break; d[kind]++; log(`${d.name} ${kind} ${pips(d[kind],2)}.`,'ok'); } }
+      sfx.ok(); break; }
+    case 'buy': { if(args[0]!=='fuel'){ log('Usage: buy fuel','x'); return; } if(!spend(PRICE.fuel,'Fuel cell')) return; CAMP.fuel++; log(`Fuel cell bought (−${PRICE.fuel} scrap). Fuel ${CAMP.fuel}.`,'ok'); sfx.ok(); break; }
+    case 'jump': return jumpNext(false);
+    case 'menu': log('Campaign saved.','s'); return showMenu();
+    default: log(`Unknown drydock command "${c}". Type HELP.`,'x'); sfx.err(); return;
+  }
+  store.set(SAVE_KEY,CAMP);
+}
+
+function getDrone(id){ const d=G.drones[id-1]; if(!d){ log(`No drone ${id}.`,'x'); return null; } if(!d.alive){ log(`Drone ${id} (${d.name}): no signal.`,'x'); return null; } return d; }
+function execMission(c,args,raw){
+  if(c!=='undock') G.undockArm=false; if(c!=='menu') G.menuArm=false;
+  if(G.end){ log('Casting off…','s'); return; }
+  switch(c){
+    case 'help': HELP_MISSION.forEach(([t,k])=>log(t,k)); break;
+    case 'labels': G.labels=!G.labels; log(`Labels ${G.labels?'on':'off'}.`); break;
+    case 'menu': if(!G.menuArm){ G.menuArm=true; log(G.tutorial?'Leave the tutorial? Type MENU again.':'Abandon this boarding? Progress since the drydock is lost. Type MENU again.','w'); return; }
+      if(!G.tutorial && CAMP) store.set(SAVE_KEY,CAMP); return showMenu();
+    case 'nav': {
+      const {ids,rest}=parseDrones(args,G.drones); const dt=rest[0];
+      if(!ids.length||!dt){ log('Usage: nav <drones> <room>   e.g.  nav 1 2 r5','x'); sfx.err(); return; }
+      let node;
+      if(dt==='dock'||dt==='a1'||dt==='airlock'||dt==='home') node=G.DOCK;
+      else if(/^r\d+$/.test(dt)){ node=roomByNum(+dt.slice(1)); if(node<0){ log(`No room ${dt} on this deck.`,'x'); sfx.err(); return; } }
+      else { log(`Unknown destination "${dt}". Use rN or dock.`,'x'); sfx.err(); return; }
+      for(const id of ids){ const d=getDrone(id); if(!d) continue;
+        if(d.node===node && !d.path.length){ log(`Drone ${id} is already in ${nodeName(node)}.`); continue; }
+        const seq=findPath(d.node,node);
+        if(!seq){ const any=findPath(d.node,node,{open:false});
+          const closed = any ? any.map(s=>G.doors[s.door]).filter(x=>!x.open).map(x=>x.name) : [];
+          log(`Drone ${id}: no open route to ${nodeName(node)}${closed.length?' — closed on shortest route: '+closed.join(' '):''}.`,'w'); sfx.err(); continue; }
+        d.path=toWaypoints(seq); d.path.push({...slot(d,node),final:true}); d.state='MOVING'; d.dest=node; d.gt=0;
+        log(`Drone ${id} (${d.name}) → ${nodeName(node)}  [${seq.length} door${seq.length===1?'':'s'}]`,'d');
+      }
+      sfx.ok(); break; }
+    case 'open': case 'close': {
+      const want=c==='open'; if(!args.length){ log(`Usage: ${c} <doors>   e.g.  ${c} d3 d4`,'x'); sfx.err(); return; }
+      let any=false;
+      for(const a of args){ const di=doorByName(a); if(di<0){ log(`No door "${a}".`,'x'); continue; } const d=G.doors[di];
+        if(d.open===want){ log(`${d.name} already ${want?'open':'closed'}.`); continue; }
+        if(!want){ const blk=[...G.drones.filter(x=>x.alive),...G.creatures.filter(x=>x.alive)].some(e=>Math.hypot(e.x-d.x,e.y-d.y)<.85);
+          if(blk){ log(`${d.name}: obstructed — something is in the door frame.`,'w'); continue; } }
+        d.open=want; d.bump=1; any=true; log(`${d.name} ${want?'opened':'closed'}.`,'ok'); }
+      if(any) sfx.door(); else sfx.err(); break; }
+    case 'gather': {
+      const {ids}=parseDrones(args.length?args:[],G.drones); if(!ids.length){ log('Usage: gather <drones>','x'); return; }
+      for(const id of ids){ const d=getDrone(id); if(!d) continue;
+        if(d.node===G.DOCK){ log(`Drone ${id}: nothing to gather in the dock.`); continue; }
+        const r=G.rooms[d.node]; if(!r.items.length){ log(`Drone ${id}: nothing to recover in r${r.num}.`,'w'); continue; }
+        d.path=[]; d.state='GATHERING'; d.gt=d.mod==='SHIELD'&&d.mk2?.7:2; d.gt0=d.gt; log(`Drone ${id} gathering in r${r.num}…`,'d'); }
+      break; }
+    case 'motion': {
+      const d=G.drones[0]; if(!d.alive){ log('Motion scanner was on WREN (1). No signal.','x'); sfx.err(); return; }
+      if(G.motionCd>0){ log(`Motion scanner recharging: ${G.motionCd.toFixed(1)} s.`,'w'); return; }
+      const range=d.mk2?5:3; G.motionCd=d.mk2?5:8; G.flags.motion=true;
+      const reach=new Map([[d.node,0]]), q=[d.node];
+      while(q.length){ const n=q.shift(); if(reach.get(n)>=range) continue; for(const e of G.adj[n]) if(!reach.has(e.to)){ reach.set(e.to,reach.get(n)+1); q.push(e.to);} }
+      G.fx.push({type:'scan',x:d.x,y:d.y,t:0,max:1.4,r:range});
+      const hits=G.creatures.filter(k=>k.alive&&reach.has(k.node));
+      hits.forEach(k=>G.fx.push({type:'blip',x:k.x,y:k.y,t:0,max:4}));
+      const rs=[...new Set(hits.map(k=>nodeName(k.node)))];
+      if(hits.length){ log(`MOTION: ${hits.length} contact${hits.length>1?'s':''} — ${rs.join(', ')}`,'x'); sfx.alarm(); }
+      else { log(`MOTION: no movement within ${range} rooms.`,'ok'); sfx.ping(); }
+      break; }
+    case 'lure': {
+      const d=G.drones[2]; if(!d.alive){ log('Decoy emitter was on BUOY (3). No signal.','x'); sfx.err(); return; }
+      if(G.lure&&G.lure.t>0){ log('Decoy already sounding.','w'); return; }
+      const dur=d.mk2?14:8; G.lure={node:d.node,x:d.x,y:d.y,t:dur,reach:d.mk2?8:5}; G.creatures.forEach(k=>k.think=Math.min(k.think,.3+Math.random()*.6));
+      log(`BUOY emitting decoy noise in ${nodeName(d.node)} for ${dur} s.`,'d'); sfx.ping(); break; }
+    case 'purge': {
+      const a=args[0]; if(!a||!/^r\d+$/.test(a)){ log('Usage: purge <room>   e.g.  purge r7','x'); sfx.err(); return; }
+      const ix=roomByNum(+a.slice(1)); if(ix<0){ log(`No room ${a}.`,'x'); return; } const r=G.rooms[ix];
+      if(!r.seen){ log(`r${r.num} not surveyed — valve status unknown.`,'w'); sfx.err(); return; }
+      if(!r.purge){ log(`r${r.num} has no purge valve.`,'w'); sfx.err(); return; }
+      if(r.purgeUsed){ log(`r${r.num} valve already spent.`,'w'); sfx.err(); return; }
+      r.purgeUsed=true; G.fx.push({type:'flash',room:ix,t:0,max:1.6}); sfx.boom();
+      const kc=G.creatures.filter(k=>k.alive&&k.node===ix); kc.forEach(k=>{k.alive=false;});
+      log(`PURGE r${r.num}: ${kc.length} biological signature${kc.length===1?'':'s'} neutralised.`,kc.length?'ok':'s');
+      G.drones.filter(d=>d.alive&&d.node===ix).forEach(d=>killDrone(d,'caught in the purge'));
+      break; }
+    case 'stop': { const {ids}=parseDrones(args.length?args:['all'],G.drones); ids.forEach(id=>{ const d=G.drones[id-1]; if(d&&d.alive){ d.path=[]; d.state=d.node===G.DOCK?'DOCKED':'IDLE'; d.gt=0; } }); log(`Stopped ${ids.join(' ')}.`); break; }
+    case 'status': {
+      const sv=G.rooms.filter(r=>r.seen).length;
+      log(`${G.ship} · ${sv}/${G.rooms.length} rooms surveyed · recovered ${G.bank.scrap} scrap, ${G.bank.fuel} fuel · T+${fmtT(G.t)}`,'h');
+      G.drones.forEach(d=>log(d.alive?`  ${d.id} ${d.name.padEnd(5)} ${d.mod.padEnd(7)} hull ${String(Math.ceil(d.hull)).padStart(3)}%  ${nodeName(d.node).padEnd(5)} ${d.state.padEnd(10)} cargo ${d.cargo}${d.fuelC?` +${d.fuelC} fuel`:''}`:`  ${d.id} ${d.name.padEnd(5)} — NO SIGNAL`, d.alive?'d':'x'));
+      const op=G.doors.filter(d=>d.open).map(d=>d.name); log(`  open doors: ${op.join(' ')||'none'}`);
+      const kn=G.rooms.filter(r=>r.seen&&r.items.length).map(r=>`r${r.num}(${r.items.map(i=>i.kind==='fuel'?'fuel':i.v).join('+')})`); if(kn.length) log(`  known salvage: ${kn.join(' ')}`,'a');
+      break; }
+    case 'undock': {
+      const away=G.drones.filter(d=>d.alive&&d.node!==G.DOCK);
+      if(away.length && !G.undockArm){ G.undockArm=true; log(`Drone${away.length>1?'s':''} ${away.map(d=>d.id).join(' ')} not in the dock and will be abandoned. Type UNDOCK again to confirm.`,'w'); sfx.err(); return; }
+      finishMission('undock'); break; }
+    default: log(`Unknown command "${raw}". Type HELP.`,'x'); sfx.err();
+  }
+}
+
+/* ---------- simulation ---------- */
+function killDrone(d,why){ if(!d.alive) return; d.alive=false; d.hull=0; d.path=[]; d.state='LOST'; d.cargo=0; d.fuelC=0; d.wreck=true;
+  G.fx.push({type:'boom',x:d.x,y:d.y,t:0,max:1.2}); log(` DRONE ${d.id} (${d.name}) LOST — ${why.toUpperCase()} `,'X'); sfx.boom();
+  if(G.drones.every(x=>!x.alive)) setTimeout(()=>finishMission('lost'),1500); }
+
+function enterNode(d){
+  if(d.node===G.DOCK) return;
+  const r=G.rooms[d.node];
+  if(!r.seen){ r.seen=true; const v=r.items.filter(i=>i.kind!=='fuel').reduce((s,x)=>s+x.v,0), f=r.items.filter(i=>i.kind==='fuel').length;
+    let msg=`Drone ${d.id} surveyed r${r.num}.`; if(v) msg+=` Salvage: ${v} unit${v>1?'s':''}${r.items.some(s=>s.kind==='core')?' (data core)':''}.`; if(f) msg+=` Fuel cell${f>1?'s':''}: ${f}.`; if(r.purge) msg+=' Purge valve present.';
+    log(msg, v||f?'a':'ok'); }
+  if(r.rad && !r.radWarn){ r.radWarn=true; log(`RADIATION in r${r.num}! Hull degrading.`,'w'); sfx.alarm(); }
+}
+function moveAlong(e,dt,speed,isDrone){
+  const wp=e.path[0]; if(!wp) return false;
+  if(wp.door!=null && !G.doors[wp.door].open){ e.path=[]; return 'blocked'; }
+  const dx=wp.x-e.x, dy=wp.y-e.y, L=Math.hypot(dx,dy), st=speed*dt;
+  if(L>1e-4) e.dir=Math.atan2(dy,dx);
+  if(L<=st){ e.x=wp.x; e.y=wp.y; e.path.shift(); if(wp.door!=null){ e.node=wp.to; if(isDrone) enterNode(e); } return e.path.length?true:'arrived'; }
+  e.x+=dx/L*st; e.y+=dy/L*st; return true;
+}
+function updateDrone(d,dt){
+  if(!d.alive) return;
+  d.hitT=Math.max(0,d.hitT-dt);
+  if(d.path.length){ const r=moveAlong(d,dt,speedOf(d),true);
+    if(r==='blocked'){ d.state='BLOCKED'; log(`Drone ${d.id}: route blocked by a closed door.`,'w'); sfx.err(); }
+    else if(r==='arrived'){ d.state=d.node===G.DOCK?'DOCKED':'IDLE'; log(`Drone ${d.id} arrived ${nodeName(d.node)}.`,'d'); } }
+  if(d.state==='GATHERING'){ d.gt-=dt; if(d.gt<=0){ const r=G.rooms[d.node]; const v=r.items.filter(i=>i.kind!=='fuel').reduce((s,x)=>s+x.v,0), f=r.items.filter(i=>i.kind==='fuel').length;
+      r.items=[]; d.cargo+=v; d.fuelC+=f; d.state='IDLE';
+      log(`Drone ${d.id} recovered ${v} scrap${f?` and ${f} fuel cell${f>1?'s':''}`:''}. Carrying ${d.cargo}${d.fuelC?` + ${d.fuelC} fuel`:''}.`,'a'); sfx.ok(); } }
+  if(d.node!==G.DOCK && G.rooms[d.node].rad){ d.hull-=6*dt*dmgMul(d); d.hitT=Math.max(d.hitT,.15); }
+  if(d.node===G.DOCK && (d.cargo>0||d.fuelC>0) && !d.path.length){ G.bank.scrap+=d.cargo; G.bank.fuel+=d.fuelC;
+    log(`Dock: ${d.name} unloaded ${d.cargo} scrap${d.fuelC?` and ${d.fuelC} fuel`:''}. This boarding: ${G.bank.scrap} scrap, ${G.bank.fuel} fuel.`,'a'); d.cargo=0; d.fuelC=0; sfx.ping(); }
+  if(d.hull<=0) killDrone(d, d.node!==G.DOCK&&G.rooms[d.node].rad?'radiation burn':'hull breach');
+}
+function randomPoint(n){ const r=G.rooms[n]; return {x:r.x+1.1+Math.random()*(r.w-2.2), y:r.y+1.1+Math.random()*(r.h-2.2)}; }
+function creaturePathTo(c,node){ const seq=findPath(c.node,node,{noDock:true}); if(!seq||!seq.length) return false; c.path=toWaypoints(seq); c.path.push(randomPoint(node)); return true; }
+function updateCreature(c,dt){
+  if(!c.alive) return;
+  const o=G.o, rnd=Math.random;
+  c.ph+=dt; c.think-=dt;
+  const prey = G.drones.filter(d=>d.alive&&d.node===c.node&&c.node!==G.DOCK).sort((a,b)=>dist(a,c)-dist(b,c))[0];
+  if(prey){
+    c.hunt=7; c.path=[]; const L=dist(prey,c);
+    if(L>.45){ c.dir=Math.atan2(prey.y-c.y,prey.x-c.x); const st=Math.min(L-.4,o.chase*dt); c.x+=Math.cos(c.dir)*st; c.y+=Math.sin(c.dir)*st; }
+    if(L<.6){ prey.hull-=o.dmg*dt*dmgMul(prey); prey.hitT=.25; if(rnd()<dt*3) sfx.err(); if(prey.hull<=0) killDrone(prey,'torn apart by a lifeform'); }
+    return;
+  }
+  if(c.path.length){ const r=moveAlong(c,dt,c.hunt>0?o.chase*1.05:o.wander,false); if(r==='blocked'){ G.doors.forEach(d=>{ if(Math.hypot(d.x-c.x,d.y-c.y)<1.6) d.bump=Math.max(d.bump,.6); }); c.think=Math.min(c.think,1); } }
+  if(c.hunt>0) c.hunt-=dt;
+  if(c.think>0) return;
+  c.think = c.hunt>0 ? .35 : 2.4+rnd()*3.2;
+  const nb = G.adj[c.node].filter(e=>G.doors[e.door].open && e.to!==G.DOCK);
+  const preyN = nb.find(e=>G.drones.some(d=>d.alive&&d.node===e.to));
+  if(preyN && (c.hunt>0 || rnd()<.5)){ creaturePathTo(c,preyN.to); return; }
+  if(G.lure && G.lure.t>0 && G.lure.node!==G.DOCK){ const seq=findPath(c.node,G.lure.node,{noDock:true}); if(seq && seq.length<=G.lure.reach){ c.hunt=Math.max(c.hunt,2); if(seq.length){ c.path=toWaypoints(seq); c.path.push({x:G.lure.x+(rnd()-.5),y:G.lure.y+(rnd()-.5)}); } else c.path=[{x:G.lure.x,y:G.lure.y}]; return; } }
+  if(c.path.length) return;
+  if(nb.length && rnd()<.4) creaturePathTo(c, nb[Math.floor(rnd()*nb.length)].to);
+  else if(rnd()<.5) c.path=[randomPoint(c.node)];
+}
+
+function update(dt){
+  stars.forEach(s=>{ s.x-=s.z*dt*(MODE==='drydock'?60:14); if(s.x<0){ s.x+=1; s.y=Math.random(); } });
+  if(MODE!=='mission'||!G){ document.body.classList.remove('alarm'); return; }
+  if(!G.end) G.t+=dt;
+  G.fx.forEach(f=>f.t+=dt); G.fx=G.fx.filter(f=>f.t<f.max);
+  G.doors.forEach(d=>d.bump=Math.max(0,d.bump-dt*1.5));
+  if(G.end) return;
+  G.motionCd=Math.max(0,G.motionCd-dt);
+  if(G.lure){ G.lure.t-=dt; if(Math.random()<dt*2.2) G.fx.push({type:'ring',x:G.lure.x,y:G.lure.y,t:0,max:1.3}); if(G.lure.t<=0) G.lure=null; }
+  G.drones.forEach(d=>updateDrone(d,dt));
+  G.creatures.forEach(c=>updateCreature(c,dt));
+  const obs=new Set(G.drones.filter(d=>d.alive).map(d=>d.node));
+  let alarm=false;
+  G.creatures.forEach(c=>{ const v=c.alive&&obs.has(c.node)&&c.node!==G.DOCK; if(v&&!c.vis){ log(` !! LIFEFORM DETECTED IN ${nodeName(c.node).toUpperCase()} `,'X'); sfx.alarm(); } c.vis=v; if(v) alarm=true; });
+  document.body.classList.toggle('alarm',alarm);
+  if(G.tut){ const s=G.tut.steps[G.tut.i]; if(s.ok()){ G.tut.i=Math.min(G.tut.i+1,G.tut.steps.length-1); log('✓ '+s.t.split('  ')[0],'ok'); sfx.ping(); showTut(); } }
+}
+
+/* ---------- rendering (amber phosphor) ---------- */
+let VW=0,VH=0,DPR=1,S=20,OX=0,OY=0;
+function resize(){ const r=cv.getBoundingClientRect(); DPR=Math.min(2,devicePixelRatio||1); VW=r.width; VH=r.height; cv.width=Math.max(1,VW*DPR); cv.height=Math.max(1,VH*DPR); fit(); }
+function fit(){ if(!G||VW<20||VH<20) return; let x0=G.dock.x,y0=0,x1=0,y1=0;
+  G.rooms.forEach(r=>{x0=Math.min(x0,r.x);y0=Math.min(y0,r.y);x1=Math.max(x1,r.x+r.w);y1=Math.max(y1,r.y+r.h);}); y0=Math.min(y0,G.dock.y-1); y1=Math.max(y1,G.dock.y+G.dock.h);
+  const pad=Math.min(24,VW*.03); S=Math.max(4,Math.min((VW-pad*2)/(x1-x0),(VH-pad*2-14)/(y1-y0))); OX=(VW-(x1-x0)*S)/2-x0*S; OY=(VH-14-(y1-y0)*S)/2-y0*S; }
+const X=x=>OX+x*S, Y=y=>OY+y*S;
+const FONT='Menlo,Consolas,"Courier New",monospace';
+function glow(color,blur=8){ ctx.strokeStyle=color; ctx.shadowColor=color; ctx.shadowBlur=blur; }
+function noGlow(){ ctx.shadowBlur=0; }
+function txt(s,x,y,col,size,{bold=false,blur=6,align='center',base='middle'}={}){ ctx.font=`${bold?'bold ':''}${size}px ${FONT}`; ctx.textAlign=align; ctx.textBaseline=base;
+  ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=blur; ctx.fillText(s,x,y); noGlow(); }
+function inv(s,x,y,col,size,align='center'){ ctx.font=`bold ${size}px ${FONT}`; const w=ctx.measureText(s).width+size*.8; const lx=align==='center'?x-w/2:x;
+  ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=14; ctx.fillRect(lx,y-size*.72,w,size*1.44); noGlow(); txt(s,lx+w/2,y+1,C.tube,size,{bold:true,blur:0}); return w; }
+
+function drawRoom(r,i,obs){
+  const x=X(r.x+.5),y=Y(r.y+.5),w=(r.w-1)*S,h=(r.h-1)*S, here=obs.has(i);
+  if(here){ ctx.fillStyle='rgba(255,176,0,.06)'; ctx.fillRect(x,y,w,h); }
+  ctx.lineWidth=1; ctx.strokeStyle=r.seen?'rgba(200,138,8,.30)':'rgba(106,69,0,.38)'; ctx.beginPath();
+  for(let gx=1;gx<r.w-1;gx++){ ctx.moveTo(Math.round(x+gx*S)+.5,y); ctx.lineTo(Math.round(x+gx*S)+.5,y+h); }
+  for(let gy=1;gy<r.h-1;gy++){ ctx.moveTo(x,Math.round(y+gy*S)+.5); ctx.lineTo(x+w,Math.round(y+gy*S)+.5); }
+  ctx.stroke();
+  if(G.labels){ const fs=Math.max(11,Math.min(h*.42,w*.32)); txt('r'+r.num,x+w/2,y+h/2,r.seen?'rgba(255,176,0,.30)':'rgba(140,92,0,.42)',fs,{blur:0}); }
+  ctx.lineWidth=here?2.2:1.6; glow(r.seen?(here?C.hi:C.n):C.dim, here?14:(r.seen?7:3)); ctx.strokeRect(x,y,w,h); noGlow();
+  if(!r.seen) return;
+  if(r.rad){ const pulse=.55+.45*Math.sin(G.t*4); [[.9,.9],[r.w-1.9,.9]].forEach(([ax,ay])=>{ if(ax<.9) return; triangle(X(r.x+ax+.5),Y(r.y+ay+.5),S*.36,`rgba(255,106,0,${pulse})`); }); }
+  if(r.purge){ const px=X(r.x+r.w-1.2), py=Y(r.y+r.h-1.2); ctx.lineWidth=1.3; ctx.setLineDash([3,2]); glow(r.purgeUsed?'rgba(106,69,0,.8)':C.mid,6);
+    ctx.beginPath(); ctx.arc(px,py,S*.3,0,7); ctx.stroke(); ctx.setLineDash([]); noGlow();
+    if(!r.purgeUsed) txt('P',px,py+1,C.mid,Math.max(9,S*.32),{blur:4}); }
+  r.items.forEach(s=>{ const sx=X(s.x),sy=Y(s.y),k=1+.08*Math.sin(G.t*3+s.x);
+    ctx.lineWidth=1.6; glow(s.kind==='fuel'?C.hi:C.n,10);
+    if(s.kind==='core'){ const z=S*.24*k; ctx.beginPath(); ctx.moveTo(sx,sy-z*1.3); ctx.lineTo(sx+z,sy); ctx.lineTo(sx,sy+z*1.3); ctx.lineTo(sx-z,sy); ctx.closePath(); ctx.stroke(); ctx.fillStyle=C.hi; ctx.fillRect(sx-z*.3,sy-z*.3,z*.6,z*.6); }
+    else if(s.kind==='fuel'){ const z=S*.22*k; ctx.beginPath(); ctx.arc(sx,sy,z,0,7); ctx.stroke(); ctx.fillStyle=C.hi; ctx.beginPath(); ctx.arc(sx,sy,z*.4,0,7); ctx.fill(); }
+    else { const z=S*.17*k; ctx.strokeRect(sx-z,sy-z,z*2,z*2); ctx.fillStyle=C.n; ctx.fillRect(sx-z*.35,sy-z*.35,z*.7,z*.7); if(s.v>1) ctx.strokeRect(sx+z*1.5,sy-z*.5,z*1.1,z*1.1); }
+    noGlow(); });
+}
+function triangle(x,y,s,col){ ctx.lineWidth=1.6; glow(col,10); ctx.beginPath(); ctx.moveTo(x,y-s); ctx.lineTo(x+s*1.05,y+s*.8); ctx.lineTo(x-s*1.05,y+s*.8); ctx.closePath(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,y-s*.35); ctx.lineTo(x,y+s*.2); ctx.stroke(); noGlow(); }
+
+function drawDoor(d){
+  const v=d.o==='v', bw=(v?1.35:1.95)*S, bh=(v?1.95:1.35)*S, x=X(d.x)-bw/2, y=Y(d.y)-bh/2;
+  const lit = d.air || (d.a<G.rooms.length&&G.rooms[d.a].seen) || (d.b<G.rooms.length&&G.rooms[d.b].seen);
+  const col = d.air?C.hi:(lit?C.n:C.mid);
+  ctx.fillStyle = d.open ? (d.air?'rgba(255,210,122,.22)':lit?'rgba(255,176,0,.2)':'rgba(200,138,8,.12)') : C.tube;
+  ctx.fillRect(x,y,bw,bh);
+  ctx.lineWidth=1.5; if(!d.open) ctx.setLineDash([3,3]); glow(col, d.bump>0?18:(lit?7:3)); ctx.strokeRect(x+.5,y+.5,bw-1,bh-1); ctx.setLineDash([]);
+  ctx.lineWidth=2; ctx.beginPath();
+  if(d.open){ const k=S*.18; if(v){ ctx.moveTo(x+3,y+k);ctx.lineTo(x+bw-3,y+k);ctx.moveTo(x+3,y+bh-k);ctx.lineTo(x+bw-3,y+bh-k);} else { ctx.moveTo(x+k,y+3);ctx.lineTo(x+k,y+bh-3);ctx.moveTo(x+bw-k,y+3);ctx.lineTo(x+bw-k,y+bh-3);} }
+  else { if(v){ ctx.moveTo(x+bw*.18,y+4);ctx.lineTo(x+bw*.18,y+bh-4);} else { ctx.moveTo(x+4,y+bh*.18);ctx.lineTo(x+bw-4,y+bh*.18);} }
+  ctx.stroke(); noGlow();
+  if(G.labels) txt(d.name,X(d.x)+(v?S*.08:0),Y(d.y)+(v?0:S*.08),col,Math.max(10,S*.46),{blur:5});
+}
+function drawDock(){ const k=G.dock; ctx.lineWidth=1.8; glow(C.hi,10); ctx.strokeRect(X(k.x),Y(k.y),k.w*S,k.h*S); noGlow();
+  ctx.strokeStyle='rgba(255,176,0,.2)'; ctx.lineWidth=1; ctx.beginPath(); for(let i=1;i<k.w;i++){ ctx.moveTo(X(k.x+i),Y(k.y)); ctx.lineTo(X(k.x+i),Y(k.y+k.h)); } ctx.stroke();
+  if(G.labels) inv('DOCK',X(k.cx),Y(k.y)-Math.max(10,S*.4)/2-6,C.n,Math.max(10,S*.4)); }
+function drawDrone(d){
+  if(d.x==null) return;
+  const x=X(d.x),y=Y(d.y),z=S*.34;
+  if(!d.alive){ if(!d.wreck) return; ctx.lineWidth=1.5; ctx.strokeStyle='rgba(106,69,0,.9)'; ctx.beginPath(); ctx.moveTo(x-z,y-z);ctx.lineTo(x+z,y+z);ctx.moveTo(x+z,y-z);ctx.lineTo(x-z,y+z); ctx.stroke(); return; }
+  if(d.path.length){ ctx.setLineDash([2,5]); ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,210,122,.55)'; ctx.beginPath(); ctx.moveTo(x,y); d.path.forEach(p=>ctx.lineTo(X(p.x),Y(p.y))); ctx.stroke(); ctx.setLineDash([]); }
+  const col = d.hitT>0 && Math.floor(G.t*14)%2 ? C.hot : C.hi;
+  glow(col,14); ctx.lineWidth=1.7;
+  for(const rr of [z*1.7,z*2.25]){ ctx.beginPath(); ctx.arc(x,y,rr,d.dir-.55,d.dir+.55); ctx.stroke(); }
+  ctx.save(); ctx.translate(x,y); ctx.rotate(d.dir); ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=14; ctx.fillRect(-z,-z,z*2,z*2); ctx.restore(); noGlow();
+  txt(String(d.id),x,y+1,C.tube,Math.max(10,S*.5),{bold:true,blur:0});
+  if(d.state==='GATHERING'){ glow(C.n,8); ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y,z*1.35,-Math.PI/2,-Math.PI/2+(1-d.gt/(d.gt0||2))*Math.PI*2); ctx.stroke(); noGlow(); }
+  if(d.cargo||d.fuelC) txt('+'+(d.cargo+d.fuelC),x+z*1.7,y-z*1.5,C.hi,Math.max(10,S*.36),{blur:6});
+}
+function drawCreature(c){ const x=X(c.x),y=Y(c.y),z=S*.34; ctx.fillStyle=C.hot; ctx.shadowColor=C.hot; ctx.shadowBlur=18; ctx.beginPath();
+  for(let i=0;i<14;i++){ const a=i/14*Math.PI*2+c.ph*.7, rr=z*(i%2?0.55:1)*(1+.12*Math.sin(c.ph*9+i)); ctx.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr); }
+  ctx.closePath(); ctx.fill(); noGlow(); }
+function drawFx(){
+  for(const f of G.fx){ const k=f.t/f.max;
+    if(f.type==='blip'){ const a=1-k; ctx.strokeStyle=`rgba(255,106,0,${a})`; ctx.lineWidth=1.6; for(let i=0;i<2;i++){ const p=((f.t*1.4+i*.5)%1); ctx.beginPath(); ctx.arc(X(f.x),Y(f.y),S*(.2+p*.9),0,7); ctx.stroke(); }
+      ctx.fillStyle=`rgba(255,106,0,${a})`; ctx.beginPath(); ctx.arc(X(f.x),Y(f.y),S*.15,0,7); ctx.fill(); }
+    else if(f.type==='scan'){ ctx.strokeStyle=`rgba(255,210,122,${.6*(1-k)})`; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(X(f.x),Y(f.y),k*S*(f.r||3)*4.5,0,7); ctx.stroke(); }
+    else if(f.type==='ring'){ ctx.strokeStyle=`rgba(255,210,122,${.7*(1-k)})`; ctx.lineWidth=1.3; ctx.beginPath(); ctx.arc(X(f.x),Y(f.y),S*(.3+k*2.4),0,7); ctx.stroke(); }
+    else if(f.type==='flash'){ const r=G.rooms[f.room]; ctx.fillStyle=`rgba(255,226,170,${.8*(1-k)})`; ctx.fillRect(X(r.x+.5),Y(r.y+.5),(r.w-1)*S,(r.h-1)*S); }
+    else if(f.type==='boom'){ ctx.strokeStyle=`rgba(255,106,0,${1-k})`; ctx.lineWidth=2; for(let i=0;i<8;i++){ const a=i/8*6.283, r0=S*k*.6, r1=S*(.2+k*1.3); ctx.beginPath(); ctx.moveTo(X(f.x)+Math.cos(a)*r0,Y(f.y)+Math.sin(a)*r0); ctx.lineTo(X(f.x)+Math.cos(a)*r1,Y(f.y)+Math.sin(a)*r1); ctx.stroke(); } }
+  }
+}
+function drawTutTarget(){
+  const tg=G.tut.steps[G.tut.i].tg; if(!tg) return;
+  const a=.45+.45*Math.sin(G.t*5); ctx.setLineDash([6,4]); ctx.lineDashOffset=-G.t*20; ctx.lineWidth=2; glow(`rgba(255,210,122,${a})`,16);
+  if(tg.room!=null){ const r=G.rooms[tg.room]; ctx.strokeRect(X(r.x+.5)-6,Y(r.y+.5)-6,(r.w-1)*S+12,(r.h-1)*S+12); }
+  else if(tg.door!=null){ const d=G.doors[tg.door]; ctx.beginPath(); ctx.arc(X(d.x),Y(d.y),S*1.5,0,7); ctx.stroke(); }
+  else if(tg.dock){ const k=G.dock; ctx.strokeRect(X(k.x)-6,Y(k.y)-6,k.w*S+12,k.h*S+12); }
+  ctx.setLineDash([]); ctx.lineDashOffset=0; noGlow();
+}
+function drawStars(fast){ stars.forEach(s=>{ const a=.25+s.z*.5; ctx.fillStyle=`rgba(255,176,0,${a})`; const L=fast?s.z*22:1; ctx.fillRect(s.x*VW,s.y*VH,Math.max(1,L),1.4); }); }
+
+function drawMission(){
+  ctx.fillStyle='rgba(200,138,8,.12)'; const step=Math.max(14,S); for(let gx=(OX%step);gx<VW;gx+=step) for(let gy=(OY%step);gy<VH;gy+=step) ctx.fillRect(gx,gy,1,1);
+  const obs=new Set(G.drones.filter(d=>d.alive).map(d=>d.node));
+  drawDock(); G.rooms.forEach((r,i)=>drawRoom(r,i,obs)); G.doors.forEach(drawDoor);
+  if(G.tut) drawTutTarget();
+  drawFx();
+  G.creatures.forEach(c=>{ if(c.alive&&c.vis) drawCreature(c); });
+  G.drones.forEach(d=>{ if(!d.alive) drawDrone(d); }); G.drones.forEach(d=>{ if(d.alive) drawDrone(d); });
+  if(G.end){ ctx.fillStyle='rgba(10,6,0,.72)'; ctx.fillRect(0,0,VW,VH); const fs=Math.min(44,VW/16);
+    inv(G.end==='undock'?'UNDOCKED':'SIGNAL LOST',VW/2,VH/2-fs*.3,G.end==='undock'?C.n:C.hot,fs);
+    txt(`+${G.bank.scrap} SCRAP · +${G.bank.fuel} FUEL`,VW/2,VH/2+fs,C.hi,Math.max(12,Math.min(16,VW/50)),{blur:8}); }
+}
+const GLYPH={D:['1110','1001','1001','1001','1110'],E:['1111','1000','1110','1000','1111'],R:['1110','1001','1110','1010','1001'],
+  L:['1000','1000','1000','1000','1111'],I:['111','010','010','010','111'],C:['0111','1000','1000','1000','0111'],T:['11111','00100','00100','00100','00100']};
+function pixelWord(word,cx,cy,cell,col){
+  const cols=[...word].reduce((n,ch)=>n+GLYPH[ch][0].length+1,-1), x0=cx-cols*cell/2, y0=cy-2.5*cell;
+  ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=cell*.9; let x=x0;
+  for(const ch of word){ const g=GLYPH[ch]; g.forEach((row,ry)=>[...row].forEach((b,rx)=>{ if(b==='1') ctx.fillRect(x+rx*cell+1,y0+ry*cell+1,cell-2,cell-2); })); x+=(g[0].length+1)*cell; }
+  noGlow(); return y0+5*cell;
+}
+function drawMenu(){
+  drawStars(false);
+  const cell=Math.max(5,Math.min(VW/54,VH/18)); const by=pixelWord('DERELICT',VW/2,VH*.27,cell,C.n);
+  const sub=Math.max(13,cell*.9); const y0=by+sub*1.6; inv('D R O N E   O P S',VW/2,y0,C.n,sub); const lh=0;
+  const f2=Math.max(12,Math.min(17,VW/55)); let y=y0+f2*3;
+  const save=store.get(SAVE_KEY);
+  [['1','TUTORIAL'],['2','NEW CAMPAIGN'],...(save?[['3',`CONTINUE · JUMP ${save.jump}`]]:[])].forEach(([k,l])=>{
+    ctx.font=`${f2}px ${FONT}`; const w=ctx.measureText(' '+k+'  '+l).width; const lx=VW/2-w/2;
+    inv(k,lx,y,C.n,f2,'left'); txt(l,lx+f2*1.6,y,C.hi,f2,{align:'left',blur:8}); y+=f2*1.9; });
+  const best=store.get(BEST_KEY); if(best) txt(`BEST · ${best.jump} DERELICTS · ${best.scrap} SCRAP`,VW/2,y+f2*.8,C.mid,Math.max(11,f2*.8),{blur:4});
+  if(Math.floor(performance.now()/530)%2) txt('_',VW/2,y+f2*2.4,C.hot,f2,{blur:10});
+}
+function drawDry(){
+  drawStars(true);
+  const f=Math.max(11,Math.min(15,VW/62)), lh=f*1.7, x0=Math.max(16,VW*.06); let y=Math.max(24,VH*.08);
+  inv(`DRYDOCK · AFTER JUMP ${CAMP.jump}`,x0,y,C.n,f*1.25,'left'); y+=lh*1.6;
+  txt(`SCRAP ${String(CAMP.scrap).padStart(3)}     FUEL ${bar(Math.min(CAMP.fuel,6)/6,6)} ${CAMP.fuel}`,x0,y,C.hi,f,{align:'left'}); y+=lh*1.4;
+  txt('#  DRONE  MODULE   HULL               ARMOUR  THRUST  MK2',x0,y,C.mid,f,{align:'left',blur:3}); y+=lh;
+  CAMP.drones.forEach(d=>{ const s=d.alive?`${d.id}  ${d.name.padEnd(5)}  ${d.mod.padEnd(7)}  ${bar(d.hull/100,10)} ${String(Math.ceil(d.hull)).padStart(3)}%   ${pips(d.armour,2).padEnd(6)}  ${pips(d.thrust,2).padEnd(6)}  ${d.mk2?'■':'□'}`
+      :`${d.id}  ${d.name.padEnd(5)}  ${d.mod.padEnd(7)}  — LOST —  rebuild ${PRICE.rebuild} scrap`;
+    txt(s,x0,y,d.alive?(d.hull<40?C.hot:C.n):C.hot,f,{align:'left'}); y+=lh; });
+  y+=lh*.6;
+  txt(`PRICES  repair ${PRICE.repairPer25}/25% hull · rebuild ${PRICE.rebuild} · armour ${PRICE.armour} · thrust ${PRICE.thrust} · mk2 ${PRICE.mk2} · fuel ${PRICE.fuel}`,x0,y,C.mid,f*.9,{align:'left',blur:3}); y+=lh;
+  ROLES.forEach(r=>{ txt(`MK2 ${r.name}: ${MK2TXT[r.mod]}`,x0,y,C.dim,f*.9,{align:'left',blur:2}); y+=lh*.85; });
+  y+=lh*.6;
+  const next=diffFor(CAMP.jump+1);
+  txt(`NEXT DERELICT  ~${next.creatures} lifeform${next.creatures>1?'s':''} · ${next.rad} radiation leak${next.rad===1?'':'s'} · bigger hull`,x0,y,C.n,f,{align:'left'}); y+=lh;
+  txt(CAMP.fuel>0?'Type JUMP (F7) to burn 1 fuel and tether to it.':`No fuel. BUY FUEL for ${PRICE.fuel} scrap.`,x0,y,CAMP.fuel>0?C.hi:C.hot,f,{align:'left'});
+}
+function drawOver(){
+  drawStars(false); const fs=Math.min(40,VW/18);
+  inv('CAMPAIGN OVER',VW/2,VH*.36,C.hot,fs);
+  if(OVER){ const f=Math.max(12,Math.min(16,VW/50));
+    txt(OVER.reason,VW/2,VH*.36+fs*1.5,C.hi,f,{blur:8});
+    txt(`${OVER.jump} DERELICTS · ${OVER.scrap} SCRAP · ${OVER.rooms} ROOMS · ${OVER.kills} KILLS`,VW/2,VH*.36+fs*1.5+f*2,C.n,f);
+    txt('TYPE CAMPAIGN TO TRY AGAIN',VW/2,VH*.36+fs*1.5+f*4.5,C.mid,f*.9,{blur:4}); }
+}
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,VW,VH);
+  if(MODE==='mission'&&G) drawMission(); else if(MODE==='drydock') drawDry(); else if(MODE==='over') drawOver(); else drawMenu();
+}
+
+/* ---------- drone cards ---------- */
+const cardEls=[];
+function cardDrones(){ return MODE==='mission'&&G ? G.drones : MODE==='drydock'&&CAMP ? CAMP.drones : baseDrones(); }
+function buildCards(){ const wrap=$('cards'); wrap.innerHTML=''; cardEls.length=0;
+  cardDrones().forEach(d=>{ const el=document.createElement('div'); el.className='card';
+    el.innerHTML=`<div class="ch"><span class="a-b">DRONE ${d.id}</span><span class="a-n">${d.name}</span><em class="a-m"></em></div>
+      <div class="feedw"><canvas width="96" height="32"></canvas><div class="ov"><span class="t1 a-b"></span><span class="al"></span></div></div>
+      <div class="ln"><span class="a-m">HULL <span class="hb a-n"></span></span><span class="hp a-b"></span></div>
+      <div class="ln a-m"><span class="loc"></span><span class="cg"></span><span class="md"></span></div>`;
+    wrap.appendChild(el);
+    cardEls.push({el, st:el.querySelector('em'), fc:el.querySelector('canvas'), t1:el.querySelector('.t1'), al:el.querySelector('.al'), hb:el.querySelector('.hb'), hp:el.querySelector('.hp'), loc:el.querySelector('.loc'), cg:el.querySelector('.cg'), md:el.querySelector('.md')});
+  }); }
+let cardTick=0;
+function updateCards(dt){
+  cardTick+=dt; const doText=cardTick>.12; if(doText) cardTick=0;
+  const list=cardDrones(), inM=MODE==='mission'&&G, t=performance.now()/1000;
+  list.forEach((d,i)=>{ const c=cardEls[i]; if(!c) return; const fx=c.fc.getContext('2d'), img=fx.createImageData(96,32), D=img.data;
+    const threat=inM&&d.alive&&G.creatures.some(k=>k.alive&&k.vis&&k.node===d.node);
+    const roll=Math.floor(t*24)%32, standby=!inM;
+    for(let p=0;p<96*32;p++){ const n=Math.random(), row=Math.floor(p/96); let v;
+      if(!d.alive) v=n*170; else if(standby) v= n<.02 ? 60+n*800 : 8+(row%2?0:4); else v = n<.08 ? 70+n*1100 : 10+(row===roll||row===(roll+1)%32?26:0)+(row%2?0:6);
+      v=Math.min(255,v);
+      if(threat&&n<.22){ D[p*4]=255; D[p*4+1]=90; D[p*4+2]=0; } else { D[p*4]=v; D[p*4+1]=v*.66; D[p*4+2]=v*.08; }
+      D[p*4+3]=255; }
+    fx.putImageData(img,0,0);
+    if(!doText) return;
+    const state=!d.alive?'NO SIGNAL':inM?d.state:MODE==='drydock'?'IN BAY':'STANDBY';
+    c.st.textContent=state; c.st.className=!d.alive?'a-H':state==='BLOCKED'?'a-h':state==='MOVING'||state==='GATHERING'?'a-i':'a-m';
+    c.t1.textContent=!d.alive?'— NO SIGNAL —':inM?`CAM ${d.id} · ${nodeName(d.node).toUpperCase()}${d.dest!=null&&d.path.length?' → '+nodeName(d.dest).toUpperCase():''}`:`CAM ${d.id} · ${MODE==='drydock'?'BAY':'OFFLINE'}`;
+    const rad=inM&&d.alive&&d.node!==G.DOCK&&G.rooms[d.node].rad;
+    c.al.textContent=threat?'!! LIFEFORM':rad?'RADIATION':''; c.al.className='al '+(threat?'a-H':rad?'a-h':'');
+    const h=Math.max(0,Math.ceil(d.hull)); c.hb.textContent=bar(h/100,12); c.hb.className='hb '+(h<35?'a-h':'a-n'); c.hp.textContent=String(h).padStart(3)+'%';
+    c.loc.textContent=inM?(d.alive?'LOC '+nodeName(d.node):'LOC —'):`ARM ${pips(d.armour||0,2)}`;
+    c.cg.textContent=inM?`CARGO ${d.cargo}${d.fuelC?'+'+d.fuelC+'F':''}`:`THR ${pips(d.thrust||0,2)}`;
+    c.md.textContent=d.mod+(d.mk2?' MK2':'');
+  });
+}
+let hudTick=0;
+function updateHud(dt){
+  hudTick+=dt; if(hudTick<.1) return; hudTick=0;
+  const inM=MODE==='mission'&&G, camp=CAMP&&!(inM&&G.tutorial);
+  const scrap=(camp?CAMP.scrap:0)+(inM?G.bank.scrap:0), fuel=(camp?CAMP.fuel:0)+(inM?G.bank.fuel:0);
+  $('hScrap').textContent=scrap; $('hFuel').textContent=fuel; $('hBlocks').textContent=bar(Math.min(fuel,6)/6,6);
+  $('hJump').textContent=inM&&G.tutorial?'TRAINING':camp&&MODE!=='menu'?CAMP.jump:'—';
+  const dl=cardDrones(); $('hDr').textContent=`${dl.filter(d=>d.alive).length}/3`; $('hTime').textContent=inM?fmtT(G.t):'--:--';
+  $('mapStat').textContent=inM?`${G.rooms.filter(r=>r.seen).length}/${G.rooms.length}`:'—';
+  const big=$('mBig'), obj=$('mObj'), cg=$('mCargo'), bst=$('mBest');
+  if(inM&&G.tutorial){ big.textContent='TRAINING'; obj.textContent='Follow the highlighted tutorial line. Nothing here is lost for real.'; }
+  else if(inM){ big.textContent=`JUMP ${CAMP.jump}`; obj.textContent=`Bring scrap and fuel cells into the dock, then UNDOCK. Fuel in the tank: ${CAMP.fuel}.`; }
+  else if(MODE==='drydock'){ big.textContent=`JUMP ${CAMP.jump} ✓`; obj.textContent='Repair, rebuild and upgrade, then JUMP. Each jump burns 1 fuel.'; }
+  else if(MODE==='over'){ big.textContent='GAME OVER'; obj.textContent='Type CAMPAIGN to start a new run.'; }
+  else { big.textContent='STANDBY'; obj.textContent='Choose 1 TUTORIAL, 2 NEW CAMPAIGN or 3 CONTINUE.'; }
+  cg.textContent=inM?`Boarding: +${G.bank.scrap} scrap, +${G.bank.fuel} fuel · aboard drones ${G.drones.reduce((s,d)=>s+d.cargo,0)}`:camp?`Totals: ${CAMP.stats.scrap} scrap salvaged · ${CAMP.stats.kills} kills`:'';
+  const best=store.get(BEST_KEY); bst.textContent=best?`Best: ${best.jump} derelicts · ${best.scrap} scrap`:'';
+  const al=$('hAlert'), threat=inM&&G.creatures.find(c=>c.alive&&c.vis);
+  if(!inM){ al.textContent=MODE==='drydock'?'IN TRANSIT · DRYDOCK':MODE==='over'?' CAMPAIGN OVER ':'AWAITING ORDERS'; al.className=MODE==='over'?'a-H':'a-m'; }
+  else if(G.end){ al.textContent=' CASTING OFF '; al.className='a-i'; }
+  else if(threat){ al.textContent=` !! LIFEFORM IN ${nodeName(threat.node).toUpperCase()} `; al.className=Math.floor(G.t*2.5)%2?'a-H':'a-h'; }
+  else if(G.drones.some(d=>d.alive&&d.node!==G.DOCK&&G.rooms[d.node].rad)){ al.textContent='RADIATION EXPOSURE'; al.className='a-h'; }
+  else { al.textContent='ALL CLEAR · TETHER STABLE'; al.className='a-m'; }
+}
+
+/* ---------- function keys ---------- */
+function buildFkeys(){ const w=$('fkeys'); w.innerHTML='';
+  FKS[MODE].forEach((k,i)=>{ const b=document.createElement('button'); b.innerHTML=`<b class="a-i">${i+1}</b><span>${k?k[0]:''}</span>`;
+    if(k){ b.title=`F${i+1}: ${k[1]}`; b.addEventListener('click',()=>{ issue(k[1]); cmd.focus(); }); } else { b.disabled=true; b.style.opacity=.45; }
+    w.appendChild(b); }); }
+const hist=[]; let hi=0;
+function issue(v){ log('> '+v,'e'); hist.push(v); hi=hist.length; run(v); }
+
+/* ---------- input ---------- */
+addEventListener('keydown',e=>{ const m=/^F([1-9])$/.exec(e.key); if(m){ e.preventDefault(); const k=FKS[MODE][+m[1]-1]; if(k) issue(k[1]); } });
+cmd.addEventListener('keydown',e=>{
+  if(e.key==="'" && !cmd.value){ e.preventDefault(); if(G) G.labels=!G.labels; return; }
+  if(e.key==='Enter'){ const v=cmd.value.trim(); cmd.value=''; if(!v) return; issue(v); return; }
+  if(e.key==='ArrowUp'){ e.preventDefault(); if(hi>0){hi--; cmd.value=hist[hi];} return; }
+  if(e.key==='ArrowDown'){ e.preventDefault(); if(hi<hist.length-1){hi++; cmd.value=hist[hi];} else {hi=hist.length; cmd.value='';} return; }
+  if(e.key==='Escape'){ cmd.value=''; return; }
+  if(e.key==='Tab'){ e.preventDefault(); const parts=cmd.value.split(/(\s+)/); const last=(parts[parts.length-1]||'').toLowerCase();
+    const pool = parts.length===1 ? CMDS[MODE] : MODE==='mission'&&G ? [...G.rooms.map(r=>'r'+r.num),...G.doors.map(d=>d.name),'dock','all'] : CMDS[MODE];
+    const m=pool.filter(w=>w.startsWith(last)); if(m.length===1){ parts[parts.length-1]=m[0]+' '; cmd.value=parts.join(''); } else if(m.length>1&&last) log(m.join('  '),'s'); return; }
+  if(e.key.length===1) sfx.key();
+});
+document.addEventListener('mousedown',e=>{ if(e.target!==cmd && !e.target.closest('button') && !window.getSelection().toString()) setTimeout(()=>{ if(!window.getSelection().toString()) cmd.focus({preventScroll:true}); },0); });
+cv.addEventListener('click',e=>{ if(MODE!=='mission'||!G) return; const r=cv.getBoundingClientRect(), mx=(e.clientX-r.left-OX)/S, my=(e.clientY-r.top-OY)/S;
+  let tok=null;
+  const d=G.doors.find(d=>Math.abs(mx-d.x)<(d.o==='v'?.7:1)&&Math.abs(my-d.y)<(d.o==='v'?1:.7)); if(d) tok=d.name;
+  else { const k=G.dock; if(mx>=k.x&&mx<=k.x+k.w&&my>=k.y&&my<=k.y+k.h) tok='dock'; else { const rm=G.rooms.find(r=>mx>=r.x+.5&&mx<=r.x+r.w-.5&&my>=r.y+.5&&my<=r.y+r.h-.5); if(rm) tok='r'+rm.num; } }
+  if(tok){ cmd.value=(cmd.value && !/\s$/.test(cmd.value)?cmd.value+' ':cmd.value)+tok+' '; cmd.focus(); sfx.key(); }
+});
+addEventListener('resize',resize);
+if(window.ResizeObserver) new ResizeObserver(resize).observe($('mapbox'));
+
+/* ---------- boot ---------- */
+for(let i=0;i<140;i++) stars.push({x:Math.random(),y:Math.random(),z:.2+Math.random()*.8});
+let last=performance.now();
+function frame(now){ const dt=Math.min(.05,(now-last)/1000); last=now; update(dt); draw(); updateCards(dt); updateHud(dt); requestAnimationFrame(frame); }
+showMenu();
+requestAnimationFrame(frame);
+setTimeout(()=>{ $('term').classList.remove('booting'); },900);
+setTimeout(()=>cmd.focus(),50);
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "derelict-drone-ops",
+  "productName": "Derelict Drone Ops",
+  "version": "0.2.0",
+  "description": "An amber-CRT salvage game: steer drones through derelict ships by typing commands.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "play": "electron . --fullscreen"
+  },
+  "devDependencies": {
+    "electron": "33.2.1"
+  }
+}
