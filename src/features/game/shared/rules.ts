@@ -1,0 +1,55 @@
+import type { Difficulty, Drone, DroneSpec, Module } from "./types.ts";
+
+export const SHIPS = [
+	"BULK HAULER ORISON-7", "ORE TENDER MALLOW", "COLONY BARGE TEMPERANCE", "SURVEY CUTTER HALCYON", "REEFER FREIGHTER OSTARA", "TUG KESTREL-9",
+	"LINER CALLISTO GRACE", "DREDGER SABLE WREN", "MAIL PACKET ISOLDE", "HOSPITAL FRIGATE MERCY ANN", "TANKER GREY HERON", "RESEARCH HULK VESTA DEEP",
+];
+
+export const ROLES: readonly { name: string; mod: Module }[] = [
+	{ name: "WREN", mod: "MOTION" },
+	{ name: "MOTH", mod: "SHIELD" },
+	{ name: "BUOY", mod: "LURE" },
+];
+
+export const PRICE = { repairPer25: 1, rebuild: 6, armour: 4, thrust: 3, mk2: 5, fuel: 5 } as const;
+
+export const MK2: Record<Module, string> = {
+	MOTION: "scan reaches 5 rooms, recharges in 5 s",
+	SHIELD: "gathers 3× faster, +1 armour plate",
+	LURE: "decoy lasts 14 s and pulls from farther",
+};
+
+/** Fuel a new campaign starts with: one for the first jump and one spare. */
+export const START_FUEL = 2;
+
+export const baseDrones = (): DroneSpec[] => ROLES.map((role, i) => ({ id: i + 1, name: role.name, mod: role.mod, hull: 100, alive: true, armour: 0, thrust: 0, mk2: false }));
+
+/** How hard derelict number `jump` is: each one bigger, with more and faster lifeforms. */
+export function difficulty(jump: number, fuelRoll = 0): Difficulty {
+	return {
+		W: Math.min(40, 26 + 2 * jump),
+		H: Math.min(24, 16 + jump),
+		creatures: Math.min(7, 1 + jump),
+		rad: Math.min(4, Math.floor((jump + 1) / 2)),
+		purge: 2 + (jump > 2 ? 1 : 0),
+		scrap: 7 + 2 * jump,
+		fuel: jump < 4 ? 2 : 1 + (fuelRoll < 0.5 ? 1 : 0),
+		openP: 0.15,
+		remove: 0.17,
+		chase: Math.min(2.3, 1.75 + 0.06 * jump),
+		wander: 1.2,
+		dmg: Math.min(75, 40 + 6 * jump),
+	};
+}
+
+export const TUTORIAL_DIFFICULTY: Difficulty = { W: 20, H: 13, creatures: 1, rad: 0, purge: 1, scrap: 0, fuel: 0, openP: 0, remove: 0, chase: 1.7, wander: 1, dmg: 40 };
+
+/** How much of a hit a drone takes: MOTH's shield halves it, and each armour plate cuts about a fifth more. */
+export const damageTaken = (d: DroneSpec): number => (d.mod === "SHIELD" ? 0.5 : 1) * (1 - 0.22 * Math.min(3, d.armour + (d.mod === "SHIELD" && d.mk2 ? 1 : 0)));
+
+export const speedOf = (d: DroneSpec): number => 2.7 * (1 + 0.15 * d.thrust);
+
+/** What it costs to bring a drone back to full hull. */
+export const repairCost = (d: DroneSpec): number => Math.ceil((100 - d.hull) / 25) * PRICE.repairPer25;
+
+export const specOf = (d: Drone | DroneSpec): DroneSpec => ({ id: d.id, name: d.name, mod: d.mod, hull: Math.max(0, d.hull), alive: d.alive, armour: d.armour, thrust: d.thrust, mk2: d.mk2 });

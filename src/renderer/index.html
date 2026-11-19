@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Derelict Drone Ops</title>
+<meta name="description" content="A full-screen amber CRT salvage terminal: board a derelict hauler and steer three drones through its rooms by typing commands.">
+<style>
+:root{
+  --tube:#0A0600; --amb:#FFB000; --hot:#FF6A00; --dim:#6A4500; --mid:#C88A08; --hi:#FFD27A;
+  --fs:13px; --lh:19px;
+  --bz-t:26px; --bz-s:30px; --bz-b:56px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:#080503;
+  background-image:
+    radial-gradient(ellipse 60% 70% at 50% 46%, rgba(255,150,20,.075) 0%, rgba(255,120,0,.02) 45%, transparent 70%),
+    radial-gradient(ellipse at 50% 40%, #1a1108 0%, #0f0a06 50%, #060403 100%);
+  color:var(--amb);
+  font-family:Menlo,Consolas,"Courier New",monospace;font-size:var(--fs);line-height:var(--lh);
+  overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+.grain{position:fixed;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:soft-light;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .4  0 0 0 0 .3  0 0 0 .55 0'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>");}
+
+/* ---- moulded terminal, filling the viewport ---- */
+#term{
+  position:fixed;inset:10px;display:flex;flex-direction:column;
+  padding:var(--bz-t) var(--bz-s) var(--bz-b);
+  border-radius:34px 34px 40px 40px;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .6  0 0 0 0 .55  0 0 0 0 .5  0 0 0 .22 0'/></filter><rect width='220' height='220' filter='url(%23g)'/></svg>"),
+    linear-gradient(175deg,#302922 0%,#24201b 22%,#1c1915 70%,#151310 100%);
+  box-shadow:
+    inset 0 2px 1px rgba(255,240,220,.07), inset 0 -4px 8px rgba(0,0,0,.55),
+    inset 3px 0 6px rgba(255,240,220,.025), inset -3px 0 6px rgba(0,0,0,.35),
+    0 2px 0 #0c0a08, 0 34px 70px rgba(0,0,0,.75), 0 0 140px rgba(255,140,0,.05);
+}
+#term::before{content:"";position:absolute;left:calc(var(--bz-s) - 12px);right:calc(var(--bz-s) - 12px);
+  top:calc(var(--bz-t) - 12px);bottom:calc(var(--bz-b) - 12px);border-radius:36px/42px;
+  background:linear-gradient(180deg,#0f0d0b,#191612);
+  box-shadow:inset 0 6px 12px rgba(0,0,0,.85),inset 0 -2px 2px rgba(255,240,220,.05),0 1px 0 rgba(255,240,220,.05)}
+.tube{position:relative;flex:1;min-height:0;border-radius:28px/34px;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 50%, #120b02 0%, #0A0600 60%, #070400 100%);
+  box-shadow:0 0 0 2px #050302, 0 0 18px rgba(255,140,0,.08)}
+#screen{position:absolute;inset:16px 24px 14px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px}
+.booting #screen{animation:rasterIn .7s ease-out}
+@keyframes rasterIn{0%,40%{opacity:0;transform:scaleY(.01);filter:brightness(3)}85%{opacity:1;transform:scaleY(1);filter:brightness(1.3)}100%{filter:brightness(1)}}
+
+/* ---- phosphor intensities (as in HST-9) ---- */
+.a-n{color:#FFB000;text-shadow:0 0 1px rgba(255,196,80,.9),0 0 6px rgba(255,150,0,.55),0 0 15px rgba(255,120,0,.22)}
+.a-b{color:#FFD27A;text-shadow:0 0 2px #FFB000,0 0 8px rgba(255,170,0,.85),0 0 20px rgba(255,130,0,.4)}
+.a-m{color:#C88A08;text-shadow:0 0 5px rgba(255,150,0,.32)}
+.a-d{color:#6A4500;text-shadow:0 0 4px rgba(255,140,0,.16)}
+.a-h{color:#FF6A00;text-shadow:0 0 2px #FF7A10,0 0 9px rgba(255,90,0,.75),0 0 20px rgba(255,80,0,.35)}
+.a-i{background:#FFB000;color:#0A0600;box-shadow:0 0 10px rgba(255,160,0,.55);text-shadow:none}
+.a-H{background:#FF6A00;color:#0A0600;box-shadow:0 0 12px rgba(255,100,0,.65);text-shadow:none}
+
+/* ---- status lines ---- */
+#status{white-space:nowrap;overflow:hidden}
+#status div{display:flex;gap:2ch}
+#status .sp{flex:1}
+.blocks{letter-spacing:-.05em}
+
+/* ---- box-ruled panels ---- */
+#main{display:grid;grid-template-columns:minmax(0,1fr) 31ch;grid-template-rows:minmax(0,1fr) minmax(150px,30%);gap:14px 14px;min-height:0}
+.pn{position:relative;border:2px solid #C88A08;min-height:0;display:flex;flex-direction:column;
+  box-shadow:0 0 6px rgba(255,150,0,.35),inset 0 0 6px rgba(255,150,0,.18)}
+.pn>.pt{position:absolute;top:-11px;left:12px;background:var(--tube);padding:0 .6ch;white-space:nowrap;z-index:2}
+.pn>.pr{position:absolute;top:-11px;right:12px;background:var(--tube);padding:0 .6ch;white-space:nowrap;z-index:2}
+#mapP{grid-column:1;grid-row:1}
+#mapbox{flex:1;min-height:0;position:relative;margin:10px 4px 4px}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+#maphint{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:11px;pointer-events:none}
+#termP{grid-column:1;grid-row:2}
+#out{flex:1;overflow-y:auto;margin-top:12px;padding:0 10px;min-height:0;scrollbar-width:none}
+#out::-webkit-scrollbar{display:none}
+#out div{white-space:pre-wrap;word-break:break-word}
+#tut{margin:6px 10px 2px;padding:2px 1ch;white-space:pre-wrap;line-height:1.45}
+#prompt{display:flex;align-items:center;padding:2px 10px 6px}
+#prompt .ps{white-space:pre}
+#cmd{flex:1;min-width:0;background:transparent;border:0;outline:0;font:inherit;padding:0;margin:0;color:#FFD27A;caret-color:#FF6A00;
+  text-shadow:0 0 2px #FFB000,0 0 8px rgba(255,170,0,.85)}
+#side{grid-column:2;grid-row:1/3;display:flex;flex-direction:column;gap:14px;min-height:0;overflow-y:auto;scrollbar-width:none;padding-top:11px}
+#side::-webkit-scrollbar{display:none}
+#side>.pn{flex-shrink:0}
+#cards{display:flex;flex-direction:column;gap:0;padding:12px 8px 6px}
+.card{padding:4px 2px 8px;border-bottom:1px dashed rgba(200,138,8,.45)}
+.card:last-child{border-bottom:0}
+.card .ch{display:flex;gap:1ch;align-items:baseline}
+.card .ch em{margin-left:auto;font-style:normal;padding:0 .5ch}
+.feedw{position:relative;margin:4px 0;height:52px;border:1px solid rgba(200,138,8,.55)}
+.feedw canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+.feedw .ov{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:1px 5px;font-size:11px;line-height:16px}
+.feedw .ov .al{align-self:flex-end;padding:0 .5ch}
+.card .ln{display:flex;justify-content:space-between;white-space:pre}
+#mission{padding:12px 10px 8px}
+#mission p{margin:0 0 4px}
+#mission .big{font-size:24px;line-height:30px;letter-spacing:.08em}
+.legend{display:grid;grid-template-columns:3ch 1fr 3ch 1fr;gap:1px 1ch;align-items:center;margin-top:6px;font-size:12px}
+.legend svg{width:22px;height:14px;overflow:visible}
+
+/* ---- function keys ---- */
+#fkeys{display:flex;gap:1ch;white-space:nowrap;overflow:hidden}
+#fkeys button:disabled{opacity:.45;cursor:default}
+#fkeys button{flex:1;min-width:0;display:flex;color:inherit;text-shadow:inherit;background:transparent;border:0;padding:0;font:inherit;cursor:pointer;text-align:left;outline:none}
+#fkeys button b{font-weight:400;padding:0 .4ch}
+#fkeys button span{flex:1;padding:0 .6ch;border-bottom:1px solid rgba(200,138,8,.5);overflow:hidden;text-overflow:clip}
+#fkeys button:hover span,#fkeys button:focus-visible span{background:#FFB000;color:#0A0600;text-shadow:none}
+
+/* ---- CRT glass ---- */
+.fx{position:absolute;inset:0;pointer-events:none;border-radius:inherit}
+.scan{background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 1.5px,rgba(0,0,0,.3) 2.2px,rgba(0,0,0,0) 3px);mix-blend-mode:multiply}
+.roll{overflow:hidden}
+.roll::before{content:"";position:absolute;left:0;right:0;top:-22%;height:22%;
+  background:linear-gradient(to bottom,rgba(255,176,0,0),rgba(255,176,0,.045) 55%,rgba(255,200,120,.06) 80%,rgba(255,176,0,0));
+  animation:roll 9s linear infinite}
+@keyframes roll{to{transform:translateY(560%)}}
+.alarm .roll::before{animation-duration:4s}
+.vig{background:radial-gradient(ellipse 78% 72% at 50% 50%,rgba(0,0,0,0) 64%,rgba(0,0,0,.36) 89%,rgba(0,0,0,.7) 100%);
+  box-shadow:inset 0 0 50px 14px rgba(0,0,0,.7),inset 0 0 6px 2px #000}
+.glare{background:radial-gradient(ellipse 34% 24% at 20% 12%,rgba(255,226,180,.05),rgba(255,226,180,0) 70%),
+  radial-gradient(ellipse 60% 14% at 50% 100%,rgba(255,170,60,.03),rgba(0,0,0,0) 80%)}
+.flick{animation:flick 7s steps(1) infinite;background:rgba(255,176,0,.012)}
+@keyframes flick{0%,100%{opacity:1}47%{opacity:.3}48%{opacity:1}73%{opacity:.65}74%{opacity:1}}
+.alarm .flick{animation-duration:1.6s;background:rgba(255,106,0,.03)}
+.beam{opacity:0;background:radial-gradient(ellipse 50% 50% at 50% 50%,#fff2cc 0%,#ffc040 30%,rgba(255,176,0,.35) 60%,rgba(255,176,0,0) 80%);transform:scale(0,.004)}
+.booting .beam{animation:beam .6s ease-out forwards}
+@keyframes beam{0%{transform:scale(.02,.004);opacity:1}38%{transform:scale(1.05,.006);opacity:1}78%{transform:scale(1.05,1);opacity:.55}100%{transform:scale(1.05,1);opacity:0}}
+
+/* ---- chin ---- */
+.chin{position:absolute;left:var(--bz-s);right:var(--bz-s);bottom:0;height:var(--bz-b);display:flex;align-items:center;gap:22px;padding:0 8px}
+.plate{font:700 12px/1 Menlo,Consolas,"Courier New",monospace;letter-spacing:.2em;color:#857868;padding:8px 14px 7px;border-radius:5px;
+  background:linear-gradient(180deg,#221e1a,#1a1714);white-space:nowrap;
+  text-shadow:0 1px 0 rgba(255,240,220,.1),0 -1px 0 rgba(0,0,0,.85);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.7),inset 0 -1px 0 rgba(255,240,220,.04),0 1px 0 rgba(255,240,220,.06)}
+.plate b{color:#9c8d7b;margin-left:.6em}
+.vents{flex:1;height:16px;max-width:260px;margin-left:auto;border-radius:8px;
+  background:repeating-linear-gradient(90deg,#0a0807 0 4px,rgba(0,0,0,0) 4px 10px);box-shadow:0 1px 0 rgba(255,240,220,.05);opacity:.9}
+.ledwrap{display:flex;align-items:center;gap:9px;font:700 11px/1 Menlo,Consolas,monospace;letter-spacing:.16em;color:#7a6e60;
+  text-shadow:0 1px 0 rgba(255,240,220,.08),0 -1px 0 #000}
+.led{width:10px;height:10px;border-radius:50%;background:#FFB000;box-shadow:0 0 0 2px #0d0b09,0 0 6px #FFB000,0 0 16px rgba(255,170,0,.55)}
+.alarm .led{background:#FF6A00;box-shadow:0 0 0 2px #0d0b09,0 0 8px #FF6A00,0 0 20px rgba(255,90,0,.7);animation:pulse .8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35;box-shadow:0 0 0 2px #0d0b09,0 0 2px #FF6A00}}
+
+@media (prefers-reduced-motion: reduce){.roll,.beam,.flick{display:none}.alarm .led{animation:none}.booting #screen{animation:none}}
+@media (max-width:1000px){ #main{grid-template-columns:minmax(0,1fr) 27ch} :root{--fs:12px;--lh:17px} }
+@media (max-width:760px){
+  body{overflow:auto}
+  :root{--bz-t:14px;--bz-s:12px;--bz-b:46px;--fs:12px;--lh:17px}
+  #term{position:relative;inset:auto;margin:6px;min-height:calc(100vh - 12px);border-radius:20px 20px 24px 24px}
+  #term::before{border-radius:18px;left:calc(var(--bz-s) - 5px);right:calc(var(--bz-s) - 5px);top:calc(var(--bz-t) - 5px);bottom:calc(var(--bz-b) - 5px)}
+  .tube{border-radius:14px/18px;flex:none}
+  #screen{position:relative;inset:auto;padding:12px 10px}
+  #main{grid-template-columns:minmax(0,1fr);grid-template-rows:52vh auto 40vh}
+  #mapP{grid-row:1}#side{grid-row:2;grid-column:1;overflow:visible}#termP{grid-row:3}
+  #cards{flex-direction:row;overflow-x:auto;gap:12px}
+  .card{min-width:190px;flex:1;border-bottom:0}
+  #status .hm,.vents,.legend{display:none}
+  #fkeys{flex-wrap:wrap}#fkeys button{flex:1 0 30%}
+  .plate{font-size:10px;padding:6px 9px;letter-spacing:.12em}
+}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<div id="term" class="booting" role="application" aria-label="Salvage control terminal. Type commands to control three drones across a campaign of derelict ships.">
+  <div class="tube" id="tube">
+    <div id="screen">
+      <div id="status">
+        <div><span class="a-b">SALVAGE-OS v2.1</span><span class="a-n hm" id="hShip">—</span><span class="a-m hm">SEED <span id="hSeed">—</span></span><span class="a-m">JUMP <span class="a-b" id="hJump">—</span></span><span class="sp"></span><span class="a-m">T+<span class="a-b" id="hTime">00:00</span></span><span class="a-m hm">OPR: SCT-7 SALVAGE</span></div>
+        <div><span class="a-m">SCRAP <span class="a-b" id="hScrap">0</span></span><span class="a-m">FUEL <span class="a-b blocks" id="hBlocks"></span> <span class="a-b" id="hFuel">0</span></span><span class="a-m">DRONES <span class="a-b" id="hDr">3/3</span></span><span class="a-m hm">SURVEYED <span class="a-b" id="mapStat">—</span></span><span class="sp"></span><span id="hAlert" class="a-m">AWAITING ORDERS</span></div>
+      </div>
+      <div id="main">
+        <section class="pn" id="mapP">
+          <span class="pt a-b" id="mapTitle">[ SALVAGE-OS ]</span><span class="pr a-m" id="mapSub">SCT-7</span>
+          <div id="mapbox"><canvas id="map" aria-label="Ship schematic map"></canvas></div>
+          <div id="maphint" class="a-d">' toggles labels · click a room or door to insert it</div>
+        </section>
+        <section class="pn" id="termP">
+          <span class="pt a-b">[ COMMAND LINK ]</span><span class="pr a-d">TAB COMPLETE · ↑↓ HISTORY · ; CHAINS</span>
+          <div id="out" role="log" aria-live="polite"></div>
+          <div id="tut" class="a-i" hidden></div>
+          <label id="prompt"><span class="ps a-n">SCT-7:\DRONE&gt; </span><input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Command input" autofocus></label>
+        </section>
+        <aside id="side">
+          <section class="pn"><span class="pt a-b">[ DRONE FEEDS ]</span><div id="cards"></div></section>
+          <section class="pn"><span class="pt a-b">[ FLEET ]</span>
+            <div id="mission">
+              <p class="big a-b" id="mBig">STANDBY</p>
+              <p class="a-n" id="mObj"></p>
+              <p id="mCargo" class="a-m"></p>
+              <p id="mBest" class="a-d"></p>
+              <div class="legend a-m">
+                <svg viewBox="0 0 22 14"><rect x="3" y="2" width="16" height="10" fill="none" stroke="#6A4500" stroke-width="1.6"/></svg><span>unsurveyed</span>
+                <svg viewBox="0 0 22 14"><rect x="3" y="2" width="16" height="10" fill="none" stroke="#FFB000" stroke-width="1.6"/></svg><span>surveyed</span>
+                <svg viewBox="0 0 22 14"><rect x="5" y="1" width="12" height="12" fill="none" stroke="#C88A08" stroke-dasharray="2 2"/></svg><span>door shut</span>
+                <svg viewBox="0 0 22 14"><rect x="5" y="1" width="12" height="12" fill="rgba(255,176,0,.3)" stroke="#FFB000"/></svg><span>door open</span>
+                <svg viewBox="0 0 22 14"><rect x="5" y="1" width="12" height="12" fill="#FFD27A"/></svg><span>drone</span>
+                <svg viewBox="0 0 22 14"><rect x="8" y="4" width="6" height="6" fill="none" stroke="#FFB000" stroke-width="1.6"/><rect x="10" y="6" width="2" height="2" fill="#FFB000"/></svg><span>salvage</span>
+                <svg viewBox="0 0 22 14"><circle cx="11" cy="7" r="5" fill="none" stroke="#FFD27A" stroke-width="1.6"/><circle cx="11" cy="7" r="2" fill="#FFD27A"/></svg><span>fuel cell</span>
+                <svg viewBox="0 0 22 14"><path d="M11 1 L19 13 L3 13Z" fill="none" stroke="#FF6A00" stroke-width="1.6"/></svg><span>radiation</span>
+                <svg viewBox="0 0 22 14"><circle cx="11" cy="7" r="5" fill="none" stroke="#C88A08" stroke-dasharray="2 1.5"/></svg><span>purge valve</span>
+                <svg viewBox="0 0 22 14"><circle cx="11" cy="7" r="4.5" fill="#FF6A00"/></svg><span>lifeform</span>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+      <div id="fkeys" class="a-n"></div>
+    </div>
+    <div class="fx scan"></div><div class="fx roll"></div><div class="fx flick"></div><div class="fx vig"></div><div class="fx glare"></div><div class="fx beam"></div>
+  </div>
+  <div class="chin">
+    <span class="plate">SALVAGE CONTROL TERMINAL<b>SCT-7</b></span>
+    <span class="vents"></span>
+    <span class="ledwrap">PWR <span class="led"></span></span>
+  </div>
+</div>
+<script type="module" src="./main.ts"></script>
+</body>
+</html>

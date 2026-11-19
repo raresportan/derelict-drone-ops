@@ -1,15 +1,35 @@
 {
   "name": "derelict-drone-ops",
   "productName": "Derelict Drone Ops",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An amber-CRT salvage game: steer drones through derelict ships by typing commands.",
-  "main": "main.js",
   "private": true,
+  "type": "module",
+  "main": "out/main/index.js",
   "scripts": {
-    "start": "electron .",
-    "play": "electron . --fullscreen"
+    "start": "electron-vite build && electron .",
+    "play": "electron-vite build && electron . --fullscreen",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc",
+    "rules": "node scripts/rules.mjs",
+    "test": "node --test \"scripts/**/*.test.ts\"",
+    "verify": "tsx scripts/verify/run.ts",
+    "gate": "marram gate",
+    "gate:fast": "marram gate fast",
+    "gate:full": "marram gate full",
+    "prepare": "git config core.hooksPath .githooks || true"
+  },
+  "dependencies": {
+    "@raresportan/marram": "0.2.3"
   },
   "devDependencies": {
-    "electron": "33.2.1"
+    "@types/node": "^26.6.4",
+    "electron": "^44.5.1",
+    "electron-vite": "^5.0.0",
+    "playwright-core": "^1.63.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
   }
 }
