@@ -24,10 +24,17 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ❌ prices and refusals are covered by unit tests (game.test.ts), not by a journey.
 - **Saves.** The campaign saves at the drydock and survives a restart; a damaged save file is ignored rather than stopping the app.
   - ✅ campaign › "Continuing restores the drydock"
-  - ❌ a damaged file is covered by save.test.ts only; no journey starts the app on one.
+  - ✅ damaged-save › "A damaged save still opens on the title menu, printed in full"
+  - ✅ damaged-save › "The damaged campaign isn't offered to continue"
+  - ✅ damaged-save › "What wasn't damaged is kept: the best run and the finished tutorial"
+  - ✅ damaged-save › "The next save replaces the damaged file with a whole one"
 - **Function keys.** F1–F9 and the key row run the commands shown for the current screen.
   - ✅ keys › "The function keys follow the screen"
   - ✅ keys › "F3 runs the motion scanner"
   - ✅ keys › "The LABELS key answers a click"
-- **Playable in a browser.** The same page runs on GitHub Pages, keeping saves in local storage.
-  - ❌ not verified by a journey; the deploy is checked by hand.
+- **Playable in a browser.** The same page runs on GitHub Pages, from a subpath and with no app bridge, keeping saves in local storage.
+  - ✅ browser › "The build opens from a Pages-style subpath, its assets found"
+  - ✅ browser › "A browser has no app bridge, so saves go to local storage"
+  - ✅ browser › "Reaching the drydock saves the campaign in local storage"
+  - ✅ browser › "After a reload the menu offers to continue"
+  - ❌ runs in Electron's Chromium, not in Safari or Firefox; the live deploy itself is checked by hand.

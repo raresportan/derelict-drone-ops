@@ -1,9 +1,10 @@
 // What a player does with the game, driven on the built app.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkFeatureMap } from "@raresportan/marram/electron/feature-map";
 import { hiddenControls } from "@raresportan/marram/electron/geometry";
 import { askedCommand } from "../../src/features/game/shared/index.ts";
-import { PROJECT, type Session } from "./harness.ts";
+import { PROJECT, type Session, serveBuild } from "./harness.ts";
 
 const mapSize = (session: Session) =>
 	session.page.evaluate(() => {
@@ -68,11 +69,56 @@ export async function keys(session: Session): Promise<void> {
 	await session.check("The LABELS key answers a click", async () => /Labels off/.test(await session.log()));
 }
 
+const savedFile = (session: Session): unknown => {
+	try {
+		return JSON.parse(readFileSync(join(session.userData, "saves.json"), "utf8"));
+	} catch {
+		return undefined;
+	}
+};
+
+export async function damagedSave(session: Session): Promise<void> {
+	mkdirSync(session.userData, { recursive: true });
+	writeFileSync(join(session.userData, "saves.json"), '{"campaign":{"seed":7,"jump":"three","drones":[{"id":1}]},"best":{"jump":4,"scrap":31},"tutorialDone":true}');
+	await session.launch();
+	await session.check("A damaged save still opens on the title menu, printed in full", async () => /Type a number \(or its name\) and press Enter\./.test(await session.log()));
+	await session.check("The damaged campaign isn't offered to continue", async () => !/3\s+CONTINUE/.test(await session.log()), () => session.log());
+	await session.check("What wasn't damaged is kept: the best run and the finished tutorial", async () => /Best run: 4 derelicts/.test(await session.log()) && /\(completed\)/.test(await session.log()), () => session.log());
+	await session.type("2");
+	await session.type("undock");
+	await session.check("The next save replaces the damaged file with a whole one", () => {
+		const saved = savedFile(session) as { campaign?: { jump?: unknown } } | undefined;
+		return saved?.campaign?.jump === 1;
+	}, () => JSON.stringify(savedFile(session)));
+}
+
+export async function browser(session: Session): Promise<void> {
+	const site = await serveBuild();
+	try {
+		await session.launchWeb(site.url);
+		await session.check("The build opens from a Pages-style subpath, its assets found", async () => /2\s+NEW CAMPAIGN/.test(await session.log()));
+		await session.check("A browser has no app bridge, so saves go to local storage", async () => await session.page.evaluate(() => !("saves" in window)));
+		await session.type("2");
+		await session.type("undock");
+		const stored = () => session.page.evaluate(() => localStorage.getItem("derelict-drone-ops:save"));
+		await session.check("Reaching the drydock saves the campaign in local storage", async () => (JSON.parse((await stored()) ?? "{}") as { campaign?: { jump?: number } }).campaign?.jump === 1, async () => String(await stored()));
+		await session.page.reload();
+		await session.page.locator("#out div").first().waitFor();
+		await session.check("After a reload the menu offers to continue", async () => /3\s+CONTINUE\s+jump 1/.test(await session.log()), () => session.log());
+		await session.shot("browser-menu");
+		await session.close();
+	} finally {
+		await site.close();
+	}
+}
+
 export const JOURNEYS: Record<string, { readonly run: (session: Session) => Promise<void>; readonly app: boolean }> = {
 	boots: { run: boots, app: true },
 	tutorial: { run: tutorial, app: true },
 	campaign: { run: campaign, app: true },
 	keys: { run: keys, app: true },
+	"damaged-save": { run: damagedSave, app: true },
+	browser: { run: browser, app: true },
 	"feature-map": {
 		app: false,
 		run: async (session) => checkFeatureMap(session, { map: join(PROJECT, "docs", "feature-map.md"), folder: join(PROJECT, "scripts", "verify"), journeys: JOURNEYS }),

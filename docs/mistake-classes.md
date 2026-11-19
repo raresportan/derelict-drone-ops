@@ -9,7 +9,8 @@ review findings names each finding's class and rung (`Class: layout. Rung: journ
 | **style**: the look drifts from the amber CRT | A new screen or panel brings its own colours | lint: `rules` (colours only in `console/client/palette.ts`); review against the 039 style |
 | **side**: code on the wrong side | The renderer imports what only the main process can run, or game rules reach into the UI | lint: `rules` (`importBoundaries`) |
 | **clock**: game rules on the wall clock | A transition scheduled with `setTimeout` runs out of order with what the player typed (the briefing printed after later lines) | architecture: `Game.tick` and `#after`; lint: `rules` (no timers in `game/shared`); unit: `game.test.ts` |
-| **save**: a campaign lost or damaged | A write cut short, two at once, or a damaged file stopping the app | architecture: one store, `SaveFile`, writing whole files in order; unit: `save.test.ts`; journey: `campaign` |
+| **save**: a campaign lost or damaged | A write cut short, two at once, or a damaged file stopping the app | architecture: one store, `SaveFile`, writing whole files in order; unit: `save.test.ts`; journeys: `campaign`, `damaged-save` (bridge) and `browser` (local storage) |
 | **promise**: a failure nobody hears | A save or link opened without handling its rejection | lint: `rules` (`lintPromises`) |
 | **rule**: the game breaks its own rules | A drone walks through a closed door, a purchase costs the wrong amount, a ship with a room nobody can reach | unit: `game.test.ts`, `world.test.ts` |
+| **wait**: a check that passes too early | A check that something is *absent* runs before the screen finishes printing, so it passes whatever happens (it happened: `damaged-save` first missed an unvalidated save) | journeys wait for the menu's last line before a negative check; review |
 | **comment**: an explanation instead of a fix | A comment explains a workaround, and agents copy it | lint: `rules` (`no-comments`) |
