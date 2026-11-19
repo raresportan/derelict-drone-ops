@@ -66,7 +66,10 @@ export class Panels {
 		row.replaceChildren();
 		game.fkeys().forEach((key, i) => {
 			const button = this.#doc.createElement("button");
-			button.append(span(this.#doc, "a-i", String(i + 1)), span(this.#doc, "", key === null ? "" : key[0]));
+			const number = this.#doc.createElement("b");
+			number.className = "a-i";
+			number.textContent = String(i + 1);
+			button.append(number, span(this.#doc, "", key === null ? "" : key[0]));
 			if (key === null) button.disabled = true;
 			else {
 				button.title = `F${i + 1}: ${key[1]}`;

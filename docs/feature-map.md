@@ -17,7 +17,14 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ campaign › "A new campaign boards the first derelict"
   - ❌ moving, gathering and banking are covered by unit tests (game.test.ts) and the tutorial journey, not by a campaign journey on a generated ship.
 - **Lifeforms and hazards.** Lifeforms hunt drones through open doors, closed doors stop them, purge valves kill them, radiation wears hulls down.
-  - ❌ unit tests only (game.test.ts: doors, purge, a lost fleet); no journey plays a fight.
+  - ✅ fight › "The lair is shut off: no open route to it"
+  - ✅ fight › "A lifeform is detected once MOTH shares its room"
+  - ✅ fight › "MOTH's feed and the status line raise the alarm"
+  - ✅ fight › "In the lair the lifeform wears MOTH's hull down"
+  - ✅ fight › "Purging the lair kills the lifeform, and MOTH with it"
+  - ✅ fight › "With MOTH gone the alarm clears"
+  - ✅ fight › "WREN, sent in after the purge, finds the lair empty"
+  - ❌ radiation, the decoy and a lifeform stopped at a closed door are covered by unit tests only (game.test.ts covers doors; radiation and the decoy have none).
 - **Drydock and jumps.** Undocking reaches the drydock, where scrap buys repairs, rebuilds, upgrades and fuel; JUMP boards the next, harder derelict.
   - ✅ campaign › "Undocking reaches the drydock"
   - ✅ campaign › "Jumping boards the second derelict"
@@ -30,6 +37,7 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ damaged-save › "The next save replaces the damaged file with a whole one"
 - **Function keys.** F1–F9 and the key row run the commands shown for the current screen.
   - ✅ keys › "The function keys follow the screen"
+  - ✅ keys › "Each key's number is a narrow cell beside its label"
   - ✅ keys › "F3 runs the motion scanner"
   - ✅ keys › "The LABELS key answers a click"
 - **Playable in a browser.** The same page runs on GitHub Pages, from a subpath and with no app bridge, keeping saves in local storage.
