@@ -2,6 +2,8 @@
 
 A salvage game on an amber CRT terminal. Your tug tethers to one derelict ship after another, and you steer three drones through each one by typing commands.
 
+**Play in your browser:** https://raresportan.github.io/derelict-drone-ops/
+
 ## Run
 
 ```bash
