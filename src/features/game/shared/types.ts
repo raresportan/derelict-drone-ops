@@ -2,14 +2,18 @@
 export type LogKind = "echo" | "note" | "ok" | "warn" | "alarm" | "drone" | "head" | "loot";
 
 /** A sound the console may play. */
-export type Sound = "key" | "ok" | "err" | "door" | "alarm" | "ping" | "boom" | "jump";
+export type Sound = "key" | "ok" | "err" | "door" | "alarm" | "ping" | "boom" | "jump" | "hum" | "morse" | "static" | "rumble";
+
+/** How a line reaches the log: at once, typed quickly, or typed slowly for the intro. */
+export type Typing = boolean | "slow";
 
 /** Where the game sends what the player hears and reads. */
 export interface Sink {
-	log(text: string, kind: LogKind, typed?: boolean): void;
+	log(text: string, kind: LogKind, typed?: Typing): void;
 	sound(name: Sound): void;
 	clear(): void;
 	toggleSound(): boolean;
+	soundOn(): boolean;
 }
 
 export interface Point {

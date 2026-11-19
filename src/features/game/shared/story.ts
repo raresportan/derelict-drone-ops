@@ -1,4 +1,4 @@
-import type { LogKind } from "./types.ts";
+import type { LogKind, Sound, Typing } from "./types.ts";
 
 export type RegionId = "surface" | "underworks" | "bore";
 
@@ -22,13 +22,23 @@ export interface RegionText {
 	crew: readonly Log[];
 }
 
+/** A title typed onto the big screen from `at` until `until`. */
+export interface IntroCard {
+	at: number;
+	until: number;
+	title: string;
+	sub: string;
+}
+
 export interface IntroText {
 	length: number;
 	scenes: readonly { at: number; scene: IntroScene }[];
-	lines: readonly { at: number; text: string; kind: LogKind }[];
+	cards: readonly IntroCard[];
+	cues: readonly { at: number; sound: Sound }[];
+	lines: readonly { at: number; text: string; kind: LogKind; typed: Typing }[];
 }
 
-export type IntroScene = "transmission" | "sos" | "moon" | "descent";
+export type IntroScene = "transmission" | "sos" | "cut" | "moon" | "descent";
 
 export interface EndingText {
 	prompt: readonly string[];

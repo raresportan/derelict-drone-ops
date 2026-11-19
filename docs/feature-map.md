@@ -13,7 +13,8 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ tutorial › "Doing step ${step} moves on to step ${step + 1}"
   - ✅ tutorial › "All three drones come home"
   - ✅ tutorial › "Undocking ends the tutorial and returns to the menu, marked done"
-- **The intro.** A first campaign opens with Halvard's transmission, the crew's SOS and a pass over Lacuna; Enter skips it, and 5 on the menu replays it.
+- **The intro.** A first campaign opens with Halvard's transmission, the crew's SOS on a scope, a hard cut to SIGNAL LOST, an orbital pass over Lacuna and the hopper's landing: title cards on the screen, the log typed slowly, and sound cues when sound is on. Enter skips it, and 5 on the menu replays it.
+  - ❌ the cards, scenes and sound are checked by a unit test of the timeline (game.test.ts) and by eye on journey screenshots; no journey reads the canvas or hears audio.
   - ✅ campaign › "A first campaign opens with Halvard's transmission"
   - ✅ campaign › "The intro moves through the SOS to the moon"
   - ✅ campaign › "Enter skips the rest into site 1, on the Surface"

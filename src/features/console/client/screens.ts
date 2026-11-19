@@ -573,8 +573,8 @@ export class Screens {
 			return;
 		}
 		const intro = game.intro;
-		if (intro !== null) this.#scene.drawIntro(this.#ctx, this.#w, this.#h, intro.scene, intro.t);
-		else this.#scene.drawIntro(this.#ctx, this.#w, this.#h, "moon", 7 + (now / 1000) * 0.05);
+		if (intro !== null) this.#scene.drawIntro(this.#ctx, this.#w, this.#h, intro);
+		else this.#scene.drawIntro(this.#ctx, this.#w, this.#h, { scene: "moon", t: 30, at: now / 1000, cards: [] });
 	}
 
 	#over(game: Game): void {

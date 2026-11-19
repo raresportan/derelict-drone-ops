@@ -55,7 +55,7 @@ export class Game {
 	#loading = new Set<Promise<void>>();
 	#waiting: { ready: () => boolean; run: () => void }[] = [];
 	#intro: IntroText | null = null;
-	#introAt: { t: number; printed: number; then: () => void } | null = null;
+	#introAt: { t: number; printed: number; cued: number; then: () => void } | null = null;
 	#ending: EndingText | null = null;
 	#chosen: "deliver" | "broadcast" | null = null;
 
@@ -76,12 +76,16 @@ export class Game {
 		return [...m.rooms.map((r) => `r${r.num}`), ...m.doors.map((d) => d.name), "dock", "all"];
 	}
 
-	/** Where the intro is: its scene and how far into it, while it plays. */
-	get intro(): { scene: IntroScene; t: number; length: number } | null {
+	/**
+	 * Where the intro is while it plays: its scene, seconds into that scene (`t`) and into the whole intro (`at`), and
+	 * the title cards on screen, each with seconds since it appeared and until it goes.
+	 */
+	get intro(): { scene: IntroScene; t: number; at: number; length: number; cards: { title: string; sub: string; t: number; left: number }[] } | null {
 		const at = this.#introAt, text = this.#intro;
 		if (this.mode !== "intro" || at === null || text === null) return null;
 		const current = [...text.scenes].reverse().find((s) => at.t >= s.at) ?? text.scenes[0]!;
-		return { scene: current.scene, t: at.t - current.at, length: text.length };
+		const cards = text.cards.filter((c) => at.t >= c.at && at.t < c.until).map((c) => ({ title: c.title, sub: c.sub, t: at.t - c.at, left: c.until - at.t }));
+		return { scene: current.scene, t: at.t - current.at, at: at.t, length: text.length, cards };
 	}
 
 	/** The story regions whose text is in memory now. */
@@ -257,8 +261,9 @@ export class Game {
 		this.#pending = null;
 		this.mode = "intro";
 		this.sink.clear();
-		this.#introAt = { t: 0, printed: 0, then };
+		this.#introAt = { t: 0, printed: 0, cued: 0, then };
 		if (this.#intro === null) this.#load("intro", loadIntro, (text) => (this.#intro = text));
+		if (!this.sink.soundOn()) this.sink.log("Sound is off. Press F8 (or type SOUND) to hear the transmission; Enter skips it.", "note");
 	}
 
 	#playIntro(dt: number): void {
@@ -267,8 +272,9 @@ export class Game {
 		at.t += dt;
 		while (at.printed < text.lines.length && text.lines[at.printed]!.at <= at.t) {
 			const line = text.lines[at.printed++]!;
-			this.sink.log(line.text, line.kind);
+			this.sink.log(line.text, line.kind, line.typed);
 		}
+		while (at.cued < text.cues.length && text.cues[at.cued]!.at <= at.t) this.sink.sound(text.cues[at.cued++]!.sound);
 		if (at.t >= text.length) this.#endIntro();
 	}
 

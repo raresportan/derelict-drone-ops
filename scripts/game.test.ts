@@ -1,14 +1,20 @@
 // The game's modes, rules and saves, played through commands on its own clock: run with npm test.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { askedCommand, type Best, type Campaign, CAST_OFF, DELIVERY_PAY, difficulty, FINAL_SITE, Game, type LogKind, PRICE, READ_SECONDS, type SaveStore, seeded, type Sink, START_FUEL } from "../src/features/game/shared/index.ts";
+import { askedCommand, type Best, type Campaign, CAST_OFF, DELIVERY_PAY, difficulty, FINAL_SITE, Game, type LogKind, PRICE, READ_SECONDS, type SaveStore, seeded, type Sink, type Sound, START_FUEL, type Typing } from "../src/features/game/shared/index.ts";
 
 class Recorder implements Sink {
-	lines: { text: string; kind: LogKind }[] = [];
-	log(text: string, kind: LogKind): void {
-		this.lines.push({ text, kind });
+	lines: { text: string; kind: LogKind; typed: Typing }[] = [];
+	sounds: Sound[] = [];
+	log(text: string, kind: LogKind, typed: Typing = false): void {
+		this.lines.push({ text, kind, typed });
 	}
-	sound(): void {}
+	sound(name: Sound): void {
+		this.sounds.push(name);
+	}
+	soundOn(): boolean {
+		return false;
+	}
 	clear(): void {
 		this.lines = [];
 	}
@@ -252,7 +258,7 @@ test("a first campaign opens with the intro, which plays through or skips into s
 		else {
 			run(game, 2);
 			assert.ok(sink.saw(/INCOMING TRANSMISSION/));
-			run(game, 24);
+			run(game, 31);
 		}
 		assert.equal(game.mode, "mission", skip ? "skipped" : "played");
 		assert.equal(game.mission!.site, 1);
@@ -342,4 +348,23 @@ test("the archive lists what was found and reads it back", async () => {
 	game.command("archive c-u03");
 	await settle(game);
 	assert.ok(sink.saw(/Twenty if Okafor keeps sleepwalking/));
+});
+
+test("the intro types its lines slowly, cuts hard to SIGNAL LOST, and plays its sounds in order", async () => {
+	const { game, sink, saves } = setup();
+	saves.seen = false;
+	game.command("2");
+	await settle(game);
+	assert.ok(sink.saw(/Sound is off\. Press F8/));
+	run(game, 14.3);
+	const lost = sink.lines.find((l) => /SIGNAL LOST/.test(l.text));
+	assert.equal(lost?.typed, false, "the cut is instant");
+	assert.equal(sink.lines.find((l) => /^CONTRACT 7731-K/.test(l.text))?.typed, "slow");
+	assert.deepEqual(sink.sounds.filter((s) => ["hum", "morse", "static"].includes(s)), ["hum", "morse", "morse", "static"]);
+	const intro = game.intro!;
+	assert.equal(intro.scene, "cut");
+	run(game, 2);
+	assert.deepEqual(game.intro!.cards.map((c) => c.title), ["LACUNA"]);
+	run(game, 14);
+	assert.ok(sink.sounds.includes("rumble") && sink.sounds.includes("boom"));
 });
