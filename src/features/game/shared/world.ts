@@ -109,7 +109,7 @@ export function generate(seed: number, o: Difficulty, tutorial = false, live: Rn
 		} else if (rng() < 0.28) chosen.push(e);
 	}
 
-	const rooms: Room[] = leaves.map((L) => ({ x: L.x, y: L.y, w: L.w, h: L.h, cx: L.x + L.w / 2, cy: L.y + L.h / 2, num: 0, seen: false, items: [], rad: false, purge: false, purgeUsed: false, radWarn: false }));
+	const rooms: Room[] = leaves.map((L) => ({ x: L.x, y: L.y, w: L.w, h: L.h, cx: L.x + L.w / 2, cy: L.y + L.h / 2, num: 0, terminal: null, seen: false, items: [], rad: false, purge: false, purgeUsed: false, radWarn: false }));
 	const roomNums = shuffle(rng, rooms.map((_, i) => i + 1));
 	rooms.forEach((r, i) => (r.num = roomNums[i]!));
 	const doorNums = shuffle(rng, chosen.map((_, i) => i + 1));

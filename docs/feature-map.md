@@ -2,9 +2,9 @@
 
 Everything the game does, how a player reaches it, and what verifies it.
 
-- **Title menu.** The app opens on the title screen, offering the tutorial and a new campaign, and a continue option once there's a save.
+- **Title menu.** The app opens on the LACUNA title screen, offering the tutorial, a new campaign, the archive and the intro, and a continue option once there's a save.
   - ✅ boots › "The title menu offers the tutorial and a new campaign"
-  - ✅ campaign › "After a restart the menu offers to continue from jump 1"
+  - ✅ campaign › "After a restart the menu offers to continue from site 1"
 - **A screen that fits.** The schematic fills its window once the tube has warmed up, and every control can be clicked where it's drawn.
   - ✅ boots › "The map fills its window, measured after the warm-up"
   - ✅ boots › "Every control can be clicked where it's drawn"
@@ -13,8 +13,12 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ tutorial › "Doing step ${step} moves on to step ${step + 1}"
   - ✅ tutorial › "All three drones come home"
   - ✅ tutorial › "Undocking ends the tutorial and returns to the menu, marked done"
-- **Boarding a derelict.** Type 2; the tug tethers to a generated ship. Drones move with `nav` through open doors, survey rooms, gather salvage and fuel, and bank it in the dock.
-  - ✅ campaign › "A new campaign boards the first derelict"
+- **The intro.** A first campaign opens with Halvard's transmission, the crew's SOS and a pass over Lacuna; Enter skips it, and 5 on the menu replays it.
+  - ✅ campaign › "A first campaign opens with Halvard's transmission"
+  - ✅ campaign › "The intro moves through the SOS to the moon"
+  - ✅ campaign › "Enter skips the rest into site 1, on the Surface"
+- **Boarding a site.** Type 2; the hopper lands at a generated site on Lacuna. Drones move with `nav` through open doors, survey rooms, gather salvage and fuel, and bank it in the dock.
+  - ✅ campaign › "The Surface's opening beat sets the scene"
   - ❌ moving, gathering and banking are covered by unit tests (game.test.ts) and the tutorial journey, not by a campaign journey on a generated ship.
 - **Lifeforms and hazards.** Lifeforms hunt drones through open doors, closed doors stop them, purge valves kill them, radiation wears hulls down.
   - ✅ fight › "The lair is shut off: no open route to it"
@@ -25,9 +29,9 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ fight › "With MOTH gone the alarm clears"
   - ✅ fight › "WREN, sent in after the purge, finds the lair empty"
   - ❌ radiation, the decoy and a lifeform stopped at a closed door are covered by unit tests only (game.test.ts covers doors; radiation and the decoy have none).
-- **Drydock and jumps.** Undocking reaches the drydock, where scrap buys repairs, rebuilds, upgrades and fuel; JUMP boards the next, harder derelict.
+- **Drydock and hops.** Undocking reaches the drydock, where scrap buys repairs, rebuilds, upgrades and fuel; HOP flies to the next, harder site.
   - ✅ campaign › "Undocking reaches the drydock"
-  - ✅ campaign › "Jumping boards the second derelict"
+  - ✅ campaign › "Hopping flies to site 2"
   - ❌ prices and refusals are covered by unit tests (game.test.ts), not by a journey.
 - **Saves.** The campaign saves at the drydock and survives a restart; a damaged save file is ignored rather than stopping the app.
   - ✅ campaign › "Continuing restores the drydock"
@@ -46,3 +50,13 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ browser › "Reaching the drydock saves the campaign in local storage"
   - ✅ browser › "After a reload the menu offers to continue"
   - ❌ runs in Electron's Chromium, not in Safari or Firefox; the live deploy itself is checked by hand.
+- **The story.** Powered terminals hold the crew's logs: 15 story logs in order by depth across the Surface, the Underworks and the Bore, and 30 crew logs. `read` puts a log in the archive, which outlasts every run; 4 on the menu lists and replays it.
+  - ✅ tutorial › "Reading the training terminal prints Halvard's briefing"
+  - ✅ tutorial › "The archive keeps the briefing the tutorial's terminal gave up"
+  - ❌ story order, depth gating and never-twice are covered by unit tests (game.test.ts); no journey reads a story terminal on a campaign site.
+- **The ending.** Lifting off the Bore floor, site 21, asks whether to DELIVER the canisters or BROADCAST the logs; the run then goes on into the deep sectors.
+  - ❌ unit tests only (game.test.ts: the ending, the retry after a loss on site 21, the deep sectors); no journey plays 21 sites.
+- **Story text loaded only when needed.** The intro, its scene, each region's logs and the ending are separate files, fetched when first needed; only the current and next region stay in memory.
+  - ✅ browser › "At the menu no story text is loaded yet, nor bundled into the main script"
+  - ✅ browser › "A campaign loads the intro and the Surface, and nothing deeper"
+  - ❌ letting go of a region's text after leaving it is covered by a unit test only (game.test.ts).

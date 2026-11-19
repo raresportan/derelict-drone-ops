@@ -32,8 +32,16 @@ export interface Item extends Point {
 	kind: "scrap" | "core" | "fuel";
 }
 
+/** A crew terminal holding log `log`; story terminals carry the main plot. */
+export interface Terminal {
+	log: string;
+	story: boolean;
+	read: boolean;
+}
+
 export interface Room extends Box {
 	num: number;
+	terminal: Terminal | null;
 	seen: boolean;
 	items: Item[];
 	rad: boolean;
@@ -103,7 +111,7 @@ export interface DroneSpec {
 	mk2: boolean;
 }
 
-export type DroneState = "DOCKED" | "IDLE" | "MOVING" | "GATHERING" | "BLOCKED" | "LOST";
+export type DroneState = "DOCKED" | "IDLE" | "MOVING" | "GATHERING" | "READING" | "BLOCKED" | "LOST";
 
 export interface Drone extends DroneSpec, Point {
 	node: number;
@@ -165,6 +173,8 @@ export interface Tutorial {
 export interface Mission extends Ship {
 	o: Difficulty;
 	ship: string;
+	site: number;
+	reads: { drone: number; room: number }[];
 	drones: Drone[];
 	bank: { scrap: number; fuel: number };
 	t: number;
@@ -185,6 +195,7 @@ export interface Campaign {
 	scrap: number;
 	drones: DroneSpec[];
 	stats: { scrap: number; rooms: number; kills: number };
+	ended: boolean;
 }
 
 export interface Best {
@@ -200,7 +211,7 @@ export interface Over {
 	kills: number;
 }
 
-export type Mode = "menu" | "mission" | "drydock" | "over";
+export type Mode = "menu" | "intro" | "mission" | "drydock" | "ending" | "over";
 
 /** What the game remembers between runs. Reads are immediate; how writes are kept is the store's business. */
 export interface SaveStore {
@@ -210,4 +221,10 @@ export interface SaveStore {
 	keepCampaign(campaign: Campaign | null): void;
 	keepBest(best: Best): void;
 	finishTutorial(): void;
+	archive(): readonly string[];
+	keepLog(id: string): void;
+	introSeen(): boolean;
+	markIntroSeen(): void;
+	endings(): readonly string[];
+	keepEnding(ending: string): void;
 }

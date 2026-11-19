@@ -1,4 +1,4 @@
-import { baseDrones, type DroneSpec, type Game, type Mission, nodeName } from "../../game/shared/index.ts";
+import { baseDrones, type DroneSpec, FINAL_SITE, type Game, type Mission, nodeName, regionOf } from "../../game/shared/index.ts";
 import { HOT_PIXEL, phosphor } from "./palette.ts";
 import { bar, pips } from "./screens.ts";
 
@@ -55,8 +55,9 @@ export class Panels {
 
 	#mode(game: Game): void {
 		const doc = this.#doc, m = game.mission;
-		el(doc, "mapTitle").textContent = game.mode === "drydock" ? "[ DRYDOCK ]" : game.mode === "mission" ? "[ SCHEMATIC ]" : "[ SALVAGE-OS ]";
-		el(doc, "mapSub").textContent = m !== null ? m.ship : game.mode === "drydock" ? `AFTER JUMP ${game.campaign?.jump ?? 0}` : "SCT-7";
+		const titles = { drydock: "[ DRYDOCK ]", mission: "[ SCHEMATIC ]", intro: "[ TRANSMISSION ]", ending: "[ HALVARD PRIORITY ]", menu: "[ SALVAGE-OS ]", over: "[ SALVAGE-OS ]" } as const;
+		el(doc, "mapTitle").textContent = titles[game.mode];
+		el(doc, "mapSub").textContent = m !== null ? (m.tutorial !== null ? m.ship : `${m.ship} · ${regionOf(m.site).name}`) : game.mode === "drydock" ? `AFTER SITE ${game.campaign?.jump ?? 0}` : game.mode === "intro" ? "CONTRACT 7731-K" : "LACUNA";
 		el(doc, "maphint").style.visibility = game.mode === "mission" ? "visible" : "hidden";
 		(doc.querySelector(".legend") as HTMLElement).style.display = game.mode === "mission" ? "" : "none";
 	}
@@ -157,7 +158,7 @@ export class Panels {
 			const live = m === null ? null : m.drones[i]!;
 			const state = !d.alive ? "NO SIGNAL" : live !== null ? live.state : game.mode === "drydock" ? "IN BAY" : "STANDBY";
 			card.state.textContent = state;
-			card.state.className = !d.alive ? "a-H" : state === "BLOCKED" ? "a-h" : state === "MOVING" || state === "GATHERING" ? "a-i" : "a-m";
+			card.state.className = !d.alive ? "a-H" : state === "BLOCKED" ? "a-h" : state === "MOVING" || state === "GATHERING" || state === "READING" ? "a-i" : "a-m";
 			card.camera.textContent = !d.alive
 				? "— NO SIGNAL —"
 				: live !== null && m !== null
@@ -183,10 +184,10 @@ export class Panels {
 		el(doc, "hScrap").textContent = String(scrap);
 		el(doc, "hFuel").textContent = String(fuel);
 		el(doc, "hBlocks").textContent = bar(Math.min(fuel, 6) / 6, 6);
-		el(doc, "hJump").textContent = m?.tutorial ? "TRAINING" : inCampaign ? String(camp.jump) : "—";
+		el(doc, "hJump").textContent = m?.tutorial ? "TRAINING" : inCampaign ? `${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}` : "—";
 		el(doc, "hDr").textContent = `${this.#drones(game).filter((d) => d.alive).length}/3`;
 		el(doc, "hTime").textContent = m === null ? "--:--" : `${String(Math.floor(m.t / 60)).padStart(2, "0")}:${String(Math.floor(m.t % 60)).padStart(2, "0")}`;
-		el(doc, "hShip").textContent = m !== null ? `TETHER: ${m.ship}` : game.mode === "drydock" ? "DRYDOCK · IN TRANSIT" : "NO TETHER";
+		el(doc, "hShip").textContent = m !== null ? `SITE: ${m.ship}` : game.mode === "drydock" ? "DRYDOCK · IN TRANSIT" : game.mode === "intro" ? "INCOMING TRANSMISSION" : "LACUNA ORBIT";
 		el(doc, "hSeed").textContent = m !== null ? String(m.seed) : camp !== null && game.mode === "drydock" ? String(camp.seed) : "—";
 		el(doc, "mapStat").textContent = m === null ? "—" : `${m.rooms.filter((r) => r.seen).length}/${m.rooms.length}`;
 
@@ -195,11 +196,17 @@ export class Panels {
 			big.textContent = "TRAINING";
 			objective.textContent = "Follow the highlighted tutorial line. Nothing here is lost for real.";
 		} else if (m !== null && camp !== null) {
-			big.textContent = `JUMP ${camp.jump}`;
-			objective.textContent = `Bring scrap and fuel cells into the dock, then UNDOCK. Fuel in the tank: ${camp.fuel}.`;
+			big.textContent = `SITE ${camp.jump}`;
+			objective.textContent = `${regionOf(m.site).name}. Bring scrap and fuel into the dock, READ terminals, then UNDOCK. Fuel: ${camp.fuel}.`;
 		} else if (game.mode === "drydock" && camp !== null) {
-			big.textContent = `JUMP ${camp.jump} ✓`;
-			objective.textContent = "Repair, rebuild and upgrade, then JUMP. Each jump burns 1 fuel.";
+			big.textContent = `SITE ${camp.jump} ✓`;
+			objective.textContent = "Repair, rebuild and upgrade, then HOP. Each hop burns 1 fuel.";
+		} else if (game.mode === "intro") {
+			big.textContent = "CONTRACT";
+			objective.textContent = "Press Enter to skip.";
+		} else if (game.mode === "ending") {
+			big.textContent = "THE BORE ✓";
+			objective.textContent = "DELIVER the canisters to Halvard, or BROADCAST the crew's logs.";
 		} else if (game.mode === "over") {
 			big.textContent = "GAME OVER";
 			objective.textContent = "Type CAMPAIGN to start a new run.";
@@ -209,7 +216,7 @@ export class Panels {
 		}
 		cargo.textContent = m !== null ? `Boarding: +${m.bank.scrap} scrap, +${m.bank.fuel} fuel · aboard drones ${m.drones.reduce((s, d) => s + d.cargo, 0)}` : inCampaign ? `Totals: ${camp.stats.scrap} scrap salvaged · ${camp.stats.kills} kills` : "";
 		const record = game.saves.best();
-		best.textContent = record === null ? "" : `Best: ${record.jump} derelicts · ${record.scrap} scrap`;
+		best.textContent = `${record === null ? "" : `Best: site ${record.jump} · ${record.scrap} scrap · `}Archive: ${game.saves.archive().length} logs`;
 
 		const tutorial = el(doc, "tut"), steps = m?.tutorial;
 		tutorial.hidden = steps === undefined || steps === null || m?.end !== null;
@@ -218,7 +225,7 @@ export class Panels {
 		const alert = el(doc, "hAlert"), seen = m?.creatures.find((c) => c.alive && c.vis);
 		const [text, cls] =
 			m === null
-				? [game.mode === "drydock" ? "IN TRANSIT · DRYDOCK" : game.mode === "over" ? " CAMPAIGN OVER " : "AWAITING ORDERS", game.mode === "over" ? "a-H" : "a-m"]
+				? [game.mode === "drydock" ? "IN TRANSIT · DRYDOCK" : game.mode === "over" ? " CAMPAIGN OVER " : game.mode === "intro" ? " INCOMING · PRIORITY " : game.mode === "ending" ? " HALVARD ON THE LINE " : "AWAITING ORDERS", game.mode === "over" || game.mode === "intro" || game.mode === "ending" ? "a-H" : "a-m"]
 				: m.end !== null
 					? [" CASTING OFF ", "a-i"]
 					: seen !== undefined

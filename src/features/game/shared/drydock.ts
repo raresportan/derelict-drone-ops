@@ -12,7 +12,7 @@ export const DRYDOCK_HELP: readonly [string, LogKind][] = [
 	[`  upgrade <drone> thrust  ${PRICE.thrust} scrap, max 2 — +15% speed each`, "note"],
 	[`  upgrade <drone> mk2     ${PRICE.mk2} scrap, once — improves the drone's own module`, "note"],
 	[`  buy fuel                ${PRICE.fuel} scrap — one jump's worth`, "note"],
-	["  jump                    burn 1 fuel, tether to the next derelict      status   menu", "note"],
+	["  hop                     burn 1 fuel, fly the hopper to the next site   status   menu", "note"],
 ];
 
 /** What a drydock command needs from the game around it. */

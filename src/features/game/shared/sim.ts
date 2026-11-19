@@ -24,6 +24,7 @@ function enterNode(m: Mission, d: Drone, sink: Sink): void {
 		if (value) msg += ` Salvage: ${value} unit${value > 1 ? "s" : ""}${r.items.some((i) => i.kind === "core") ? " (data core)" : ""}.`;
 		if (cells) msg += ` Fuel cell${cells > 1 ? "s" : ""}: ${cells}.`;
 		if (r.purge) msg += " Purge valve present.";
+		if (r.terminal !== null) msg += " A terminal is still powered.";
 		sink.log(msg, value || cells ? "loot" : "ok");
 	}
 	if (r.rad && !r.radWarn) {
@@ -71,6 +72,13 @@ function updateDrone(m: Mission, d: Drone, dt: number, sink: Sink): void {
 		} else if (step === "arrived") {
 			d.state = d.node === m.dock ? "DOCKED" : "IDLE";
 			sink.log(`Drone ${d.id} arrived ${nodeName(m, d.node)}.`, "drone");
+		}
+	}
+	if (d.state === "READING") {
+		d.gather -= dt;
+		if (d.gather <= 0) {
+			d.state = "IDLE";
+			m.reads.push({ drone: d.id, room: d.node });
 		}
 	}
 	if (d.state === "GATHERING") {

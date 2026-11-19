@@ -1,4 +1,4 @@
-import { difficulty, type Drone, type Game, MK2, type Mission, PRICE, ROLES, type Room } from "../../game/shared/index.ts";
+import { difficulty, type Drone, FINAL_SITE, type Game, MK2, type Mission, PRICE, ROLES, regionOf, type Room, siteName } from "../../game/shared/index.ts";
 import { alpha, C } from "./palette.ts";
 
 const FONT = 'Menlo,Consolas,"Courier New",monospace';
@@ -11,7 +11,12 @@ const GLYPH: Record<string, readonly string[]> = {
 	I: ["111", "010", "010", "010", "111"],
 	C: ["0111", "1000", "1000", "1000", "0111"],
 	T: ["11111", "00100", "00100", "00100", "00100"],
+	A: ["0110", "1001", "1111", "1001", "1001"],
+	U: ["1001", "1001", "1001", "1001", "0110"],
+	N: ["1001", "1101", "1011", "1001", "1001"],
 };
+
+type SceneModule = typeof import("./intro-scene.ts");
 
 export const bar = (f: number, n: number): string => {
 	const c = Math.round(Math.max(0, Math.min(1, f)) * n);
@@ -36,6 +41,8 @@ export class Screens {
 	#ox = 0;
 	#oy = 0;
 	#fitted: Mission | null = null;
+	#scene: SceneModule | null = null;
+	#sceneLoading = false;
 	readonly #stars = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), z: 0.2 + Math.random() * 0.8 }));
 
 	constructor(canvas: HTMLCanvasElement) {
@@ -84,6 +91,7 @@ export class Screens {
 		if (this.#w < 20 || this.#h < 20) return;
 		const m = game.mission;
 		if (game.mode === "mission" && m !== null) this.#mission(m, game.labels);
+		else if (game.mode === "intro" || game.mode === "ending") this.#cinema(game, now);
 		else if (game.mode === "drydock") this.#drydock(game);
 		else if (game.mode === "over") this.#over(game);
 		else this.#menu(game, now);
@@ -199,6 +207,19 @@ export class Screens {
 			ctx.setLineDash([]);
 			this.#plain();
 			if (!r.purgeUsed) this.#text("P", px, py + 1, C.mid, Math.max(9, S * 0.32), { blur: 4 });
+		}
+		if (r.terminal !== null) {
+			const tx = this.#X(r.x + 1.3), ty = this.#Y(r.y + r.h - 1.3), z = S * 0.26, colour = r.terminal.read ? C.dim : C.hi;
+			ctx.lineWidth = 1.5;
+			this.#glow(colour, r.terminal.read ? 2 : 10);
+			ctx.strokeRect(tx - z, ty - z * 0.8, z * 2, z * 1.6);
+			ctx.beginPath();
+			for (let k = -1; k <= 1; k++) {
+				ctx.moveTo(tx - z * 0.6, ty + k * z * 0.4);
+				ctx.lineTo(tx + z * (r.terminal.read ? 0.2 : 0.6), ty + k * z * 0.4);
+			}
+			ctx.stroke();
+			this.#plain();
 		}
 		for (const item of r.items) {
 			const sx = this.#X(item.x), sy = this.#Y(item.y), k = 1 + 0.08 * Math.sin(m.t * 3 + item.x);
@@ -478,13 +499,13 @@ export class Screens {
 		this.#starfield(false);
 		const W = this.#w, H = this.#h;
 		const cell = Math.max(5, Math.min(W / 54, H / 18));
-		const bottom = this.#pixelWord("DERELICT", W / 2, H * 0.27, cell, C.n);
+		const bottom = this.#pixelWord("LACUNA", W / 2, H * 0.25, cell * 1.15, C.n);
 		const sub = Math.max(13, cell * 0.9), subY = bottom + sub * 1.6;
 		this.#inverse("D R O N E   O P S", W / 2, subY, C.n, sub);
 		const f = Math.max(12, Math.min(17, W / 55));
 		let y = subY + f * 3;
 		const save = game.saves.campaign();
-		const options: [string, string][] = [["1", "TUTORIAL"], ["2", "NEW CAMPAIGN"], ...(save === null ? [] : [["3", `CONTINUE · JUMP ${save.jump}`] as [string, string]])];
+		const options: [string, string][] = [["1", "TUTORIAL"], ["2", "NEW CAMPAIGN"], ...(save === null ? [] : [["3", `CONTINUE · SITE ${save.jump}`] as [string, string]]), ["4", `ARCHIVE · ${game.saves.archive().length} LOGS`], ["5", "INTRO"]];
 		for (const [key, label] of options) {
 			this.#ctx.font = `${f}px ${FONT}`;
 			const left = W / 2 - this.#ctx.measureText(` ${key}  ${label}`).width / 2;
@@ -493,7 +514,7 @@ export class Screens {
 			y += f * 1.9;
 		}
 		const best = game.saves.best();
-		if (best !== null) this.#text(`BEST · ${best.jump} DERELICTS · ${best.scrap} SCRAP`, W / 2, y + f * 0.8, C.mid, Math.max(11, f * 0.8), { blur: 4 });
+		if (best !== null) this.#text(`BEST · SITE ${best.jump} · ${best.scrap} SCRAP`, W / 2, y + f * 0.8, C.mid, Math.max(11, f * 0.8), { blur: 4 });
 		if (Math.floor(now / 530) % 2) this.#text("_", W / 2, y + f * 2.4, C.hot, f, { blur: 10 });
 	}
 
@@ -506,7 +527,7 @@ export class Screens {
 		const line = (s: string, colour: string, size = f, blur = 6): void => {
 			this.#text(s, x0, y, colour, size, { align: "left", blur });
 		};
-		this.#inverse(`DRYDOCK · AFTER JUMP ${camp.jump}`, x0, y, C.n, f * 1.25, "left");
+		this.#inverse(`DRYDOCK · AFTER SITE ${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}`, x0, y, C.n, f * 1.25, "left");
 		y += lh * 1.6;
 		line(`SCRAP ${String(camp.scrap).padStart(3)}     FUEL ${bar(Math.min(camp.fuel, 6) / 6, 6)} ${camp.fuel}`, C.hi);
 		y += lh * 1.4;
@@ -529,10 +550,31 @@ export class Screens {
 			y += lh * 0.85;
 		}
 		y += lh * 0.6;
-		const next = difficulty(camp.jump + 1);
-		line(`NEXT DERELICT  ~${next.creatures} lifeform${next.creatures > 1 ? "s" : ""} · ${next.rad} radiation leak${next.rad === 1 ? "" : "s"} · bigger hull`, C.n);
+		const site = camp.ended ? camp.jump + 1 : Math.min(camp.jump + 1, FINAL_SITE), next = difficulty(site);
+		line(`NEXT  SITE ${site} · ${siteName(site)} · ${regionOf(site).name}`, C.n);
 		y += lh;
-		line(camp.fuel > 0 ? "Type JUMP (F7) to burn 1 fuel and tether to it." : `No fuel. BUY FUEL for ${PRICE.fuel} scrap.`, camp.fuel > 0 ? C.hi : C.hot);
+		line(`      ~${next.creatures} lifeform${next.creatures > 1 ? "s" : ""} · ${next.rad} radiation leak${next.rad === 1 ? "" : "s"}`, C.mid, f, 3);
+		y += lh;
+		line(camp.fuel > 0 ? "Type HOP (F7) to burn 1 fuel and fly there." : `No fuel. BUY FUEL for ${PRICE.fuel} scrap.`, camp.fuel > 0 ? C.hi : C.hot);
+	}
+
+	#cinema(game: Game, now: number): void {
+		if (this.#scene === null) {
+			if (!this.#sceneLoading) {
+				this.#sceneLoading = true;
+				import("./intro-scene.ts")
+					.then((scene) => (this.#scene = scene))
+					.catch((error: unknown) => {
+						this.#sceneLoading = false;
+						console.error("Loading the intro scene failed:", error);
+					});
+			}
+			this.#starfield(false);
+			return;
+		}
+		const intro = game.intro;
+		if (intro !== null) this.#scene.drawIntro(this.#ctx, this.#w, this.#h, intro.scene, intro.t);
+		else this.#scene.drawIntro(this.#ctx, this.#w, this.#h, "moon", 7 + (now / 1000) * 0.05);
 	}
 
 	#over(game: Game): void {
@@ -542,7 +584,7 @@ export class Screens {
 		if (o === null) return;
 		const f = Math.max(12, Math.min(16, W / 50)), y = H * 0.36 + fs * 1.5;
 		this.#text(o.reason, W / 2, y, C.hi, f, { blur: 8 });
-		this.#text(`${o.jump} DERELICTS · ${o.scrap} SCRAP · ${o.rooms} ROOMS · ${o.kills} KILLS`, W / 2, y + f * 2, C.n, f);
+		this.#text(`SITE ${o.jump} · ${o.scrap} SCRAP · ${o.rooms} ROOMS · ${o.kills} KILLS`, W / 2, y + f * 2, C.n, f);
 		this.#text("TYPE CAMPAIGN TO TRY AGAIN", W / 2, y + f * 4.5, C.mid, f * 0.9, { blur: 4 });
 	}
 }

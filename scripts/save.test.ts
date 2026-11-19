@@ -8,9 +8,12 @@ import { SaveFile } from "../src/features/game/host/store.ts";
 import { baseDrones, EMPTY_SAVE, parseSave, type SaveData } from "../src/features/game/shared/index.ts";
 
 const sample = (jump: number): SaveData => ({
-	campaign: { seed: 7, jump, fuel: 1, scrap: 12, drones: baseDrones(), stats: { scrap: 20, rooms: 9, kills: 1 } },
+	campaign: { seed: 7, jump, fuel: 1, scrap: 12, drones: baseDrones(), stats: { scrap: 20, rooms: 9, kills: 1 }, ended: false },
 	best: { jump: 3, scrap: 40 },
 	tutorialDone: true,
+	archive: ["H-00", "S01", "C-S04"],
+	introSeen: true,
+	endings: ["deliver"],
 });
 
 function inScratch(run: (file: string) => Promise<void>): () => Promise<void> {
@@ -48,6 +51,12 @@ test("a damaged campaign is dropped but the rest is kept", () => {
 		assert.equal(read.tutorialDone, true);
 	}
 	assert.deepEqual(parseSave(good), good);
+});
+
+test("the archive keeps only real log ids, once each", () => {
+	const read = parseSave({ ...sample(1), archive: ["S01", "S01", "C-U07", "S1", "x", 42, "H-00"], endings: ["deliver", "nope", "broadcast"] });
+	assert.deepEqual(read.archive, ["S01", "C-U07", "H-00"]);
+	assert.deepEqual(read.endings, ["deliver", "broadcast"]);
 });
 
 test("a save is kept for the next run, as whole JSON", inScratch(async (file) => {

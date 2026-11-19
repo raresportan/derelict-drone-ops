@@ -1,5 +1,6 @@
 import type { Rng } from "./rng.ts";
 import { TUTORIAL_DIFFICULTY } from "./rules.ts";
+import { BRIEFING } from "./story.ts";
 import type { Ship, Tutorial } from "./types.ts";
 import { generate, newCreature, spotIn } from "./world.ts";
 
@@ -13,6 +14,7 @@ export function buildTutorial(rng: Rng): { ship: Ship; tutorial: Tutorial } {
 		if (next === undefined || lair === undefined) continue;
 		const N = next.to, L = lair, rN = ship.rooms[N]!, rL = ship.rooms[L]!;
 		rN.items.push({ ...spotIn(rng, rN), v: 1, kind: "scrap" }, { ...spotIn(rng, rN), v: 1, kind: "scrap" });
+		rN.terminal = { log: BRIEFING.id, story: false, read: false };
 		const spare = ship.rooms.map((_, i) => i).find((i) => i !== N && i !== L && i !== S);
 		if (spare !== undefined) ship.rooms[spare]!.items.push({ ...spotIn(rng, ship.rooms[spare]!), v: 1, kind: "fuel" });
 		rL.items.push({ ...spotIn(rng, rL), v: 3, kind: "core" });
@@ -27,6 +29,7 @@ export function buildTutorial(rng: Rng): { ship: Ship; tutorial: Tutorial } {
 				{ text: "Before going in, listen. WREN carries a motion scanner:   motion", done: (m) => m.scanned, target: null },
 				{ text: `Quiet nearby. Salvage was sighted in ${rn}. Send MOTH:   nav 2 ${rn}`, done: (m) => m.drones[1]!.node === N && m.drones[1]!.path.length === 0, target: { room: N } },
 				{ text: "Pick it up:   gather 2", done: (m) => m.drones[1]!.cargo > 0, target: null },
+				{ text: `A terminal is still powered in ${rn}. Logs tell you what happened here. Have MOTH read it:   read 2`, done: (m) => rN.terminal?.read === true && m.drones[1]!.state !== "READING", target: { room: N } },
 				{ text: "Cargo only counts once it's in the dock. Bring it home:   nav 2 dock", done: (m) => m.bank.scrap > 0, target: { dock: true } },
 				{
 					text: `Something sleeps in ${rl} beside a data core. Lifeforms can't pass closed doors; a purge valve there kills anything inside. Explore, then:   nav all dock   and   undock`,

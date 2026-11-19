@@ -30,17 +30,20 @@ export async function boots(session: Session): Promise<void> {
 export async function tutorial(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("1");
-	await session.check("The tutorial starts at its first step", async () => (await session.text("#tut")).startsWith("TUTORIAL 1/7"));
-	for (let step = 1; step < 7; step++) {
+	await session.check("The tutorial starts at its first step", async () => (await session.text("#tut")).startsWith("TUTORIAL 1/8"));
+	for (let step = 1; step < 8; step++) {
 		const hint = await session.text("#tut");
 		await session.type(askedCommand(hint));
-		await session.check(`Doing step ${step} moves on to step ${step + 1}`, async () => (await session.text("#tut")).startsWith(`TUTORIAL ${step + 1}/7`), () => session.text("#tut"));
+		await session.check(`Doing step ${step} moves on to step ${step + 1}`, async () => (await session.text("#tut")).startsWith(`TUTORIAL ${step + 1}/8`), () => session.text("#tut"));
 	}
+	await session.check("Reading the training terminal prints Halvard's briefing", async () => /H-00 · CONTRACTOR BRIEFING/.test(await session.log()), () => session.log());
 	await session.shot("tutorial-last-step");
 	await session.type("nav all dock");
 	await session.check("All three drones come home", async () => (await session.page.locator("#cards em", { hasText: "DOCKED" }).count()) === 3);
 	await session.type("undock");
 	await session.check("Undocking ends the tutorial and returns to the menu, marked done", async () => /TUTORIAL\s+a guided first boarding \(completed\)/.test(await session.log()), () => session.log());
+	await session.type("4");
+	await session.check("The archive keeps the briefing the tutorial's terminal gave up", async () => /ARCHIVE · story 0\/15 · crew 0\/30 · briefing/.test(await session.log()) && /H-00 {2}Contractor briefing/.test(await session.log()), () => session.log());
 }
 
 const card = (session: Session, id: number) => session.page.locator("#cards .card").nth(id - 1);
@@ -50,11 +53,11 @@ const locationOf = async (session: Session, id: number): Promise<string> => (awa
 export async function fight(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("1");
-	await session.until(async () => (await session.text("#tut")).startsWith("TUTORIAL 1/7"), "the tutorial's first step");
-	for (let step = 1; step < 7; step++) {
+	await session.until(async () => (await session.text("#tut")).startsWith("TUTORIAL 1/8"), "the tutorial's first step");
+	for (let step = 1; step < 8; step++) {
 		const hint = await session.text("#tut");
 		await session.type(askedCommand(hint));
-		await session.until(async () => (await session.text("#tut")).startsWith(`TUTORIAL ${step + 1}/7`), `tutorial step ${step + 1}`);
+		await session.until(async () => (await session.text("#tut")).startsWith(`TUTORIAL ${step + 1}/8`), `tutorial step ${step + 1}`);
 	}
 	const lair = /sleeps in (r\d+)/.exec(await session.text("#tut"))?.[1];
 	await session.check("The training hulk names the lifeform's lair", lair !== undefined, await session.text("#tut"));
@@ -95,17 +98,23 @@ export async function fight(session: Session): Promise<void> {
 export async function campaign(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("2");
-	await session.check("A new campaign boards the first derelict", async () => (await session.text("#hJump")) === "1" && (await session.text("#mapTitle")) === "[ SCHEMATIC ]");
+	await session.check("A first campaign opens with Halvard's transmission", async () => (await session.text("#mapTitle")) === "[ TRANSMISSION ]" && /INCOMING TRANSMISSION · HALVARD MINERAL TRUST/.test(await session.log()));
+	await session.until(async () => /LACUNA · ICE MOON OF BRANNOCK/.test(await session.log()), "the moon scene", 20_000);
+	await session.check("The intro moves through the SOS to the moon", async () => /SIGNAL LOST/.test(await session.log()) && /LACUNA · ICE MOON OF BRANNOCK/.test(await session.log()), () => session.log());
+	await session.shot("intro-moon");
+	await session.page.locator("#cmd").press("Enter");
+	await session.check("Enter skips the rest into site 1, on the Surface", async () => (await session.text("#hJump")) === "1/21" && /PERIMETER HAB 3 · THE SURFACE/.test(await session.text("#mapSub")), () => session.text("#mapSub"));
+	await session.check("The Surface's opening beat sets the scene", async () => /THE SURFACE\. The hopper settles on grey ice/.test(await session.log()), () => session.log());
 	await session.type("undock");
 	await session.check("Undocking reaches the drydock", async () => (await session.text("#mapTitle")) === "[ DRYDOCK ]");
 	await session.shot("drydock");
 	await session.close();
 	await session.launch();
-	await session.check("After a restart the menu offers to continue from jump 1", async () => /3\s+CONTINUE\s+jump 1/.test(await session.log()), () => session.log());
+	await session.check("After a restart the menu offers to continue from site 1", async () => /3\s+CONTINUE\s+site 1/.test(await session.log()), () => session.log());
 	await session.type("3");
 	await session.check("Continuing restores the drydock", async () => (await session.text("#mapTitle")) === "[ DRYDOCK ]" && /Campaign restored/.test(await session.log()));
-	await session.type("jump");
-	await session.check("Jumping boards the second derelict", async () => (await session.text("#hJump")) === "2" && (await session.text("#mapTitle")) === "[ SCHEMATIC ]");
+	await session.type("hop");
+	await session.check("Hopping flies to site 2", async () => (await session.text("#hJump")) === "2/21" && /LANDING PAD CONTROL/.test(await session.text("#mapSub")));
 }
 
 export async function keys(session: Session): Promise<void> {
@@ -139,8 +148,8 @@ export async function damagedSave(session: Session): Promise<void> {
 	await session.launch();
 	await session.check("A damaged save still opens on the title menu, printed in full", async () => /Type a number \(or its name\) and press Enter\./.test(await session.log()));
 	await session.check("The damaged campaign isn't offered to continue", async () => !/3\s+CONTINUE/.test(await session.log()), () => session.log());
-	await session.check("What wasn't damaged is kept: the best run and the finished tutorial", async () => /Best run: 4 derelicts/.test(await session.log()) && /\(completed\)/.test(await session.log()), () => session.log());
-	await session.type("2");
+	await session.check("What wasn't damaged is kept: the best run and the finished tutorial", async () => /Best run: site 4 reached/.test(await session.log()) && /\(completed\)/.test(await session.log()), () => session.log());
+	await session.startCampaign();
 	await session.type("undock");
 	await session.check("The next save replaces the damaged file with a whole one", () => {
 		const saved = savedFile(session) as { campaign?: { jump?: unknown } } | undefined;
@@ -154,13 +163,28 @@ export async function browser(session: Session): Promise<void> {
 		await session.launchWeb(site.url);
 		await session.check("The build opens from a Pages-style subpath, its assets found", async () => /2\s+NEW CAMPAIGN/.test(await session.log()));
 		await session.check("A browser has no app bridge, so saves go to local storage", async () => await session.page.evaluate(() => !("saves" in window)));
-		await session.type("2");
+		const fetched = () => session.page.evaluate(() => performance.getEntriesByType("resource").map((e) => e.name.split("/").pop()!.replace(/-[\w-]{8}\.js$/, "")));
+		const mainHoldsStory = () =>
+			session.page.evaluate(async () => {
+				const main = document.querySelector<HTMLScriptElement>("script[type=module]")!.src;
+				return (await (await fetch(main)).text()).includes("Warm water at 2.1 km");
+			});
+		await session.check(
+			"At the menu no story text is loaded yet, nor bundled into the main script",
+			async () => !(await fetched()).some((name) => /^(intro|surface|underworks|bore|ending|intro-scene)$/.test(name)) && !(await mainHoldsStory()),
+			async () => `fetched: ${(await fetched()).join(", ")}; story in main script: ${await mainHoldsStory()}`,
+		);
+		await session.startCampaign();
+		await session.check("A campaign loads the intro and the Surface, and nothing deeper", async () => {
+			const names = await fetched();
+			return ["intro", "intro-scene", "surface"].every((n) => names.includes(n)) && !names.includes("underworks") && !names.includes("bore") && !names.includes("ending");
+		}, async () => (await fetched()).join(", "));
 		await session.type("undock");
 		const stored = () => session.page.evaluate(() => localStorage.getItem("derelict-drone-ops:save"));
 		await session.check("Reaching the drydock saves the campaign in local storage", async () => (JSON.parse((await stored()) ?? "{}") as { campaign?: { jump?: number } }).campaign?.jump === 1, async () => String(await stored()));
 		await session.page.reload();
 		await session.page.locator("#out div").first().waitFor();
-		await session.check("After a reload the menu offers to continue", async () => /3\s+CONTINUE\s+jump 1/.test(await session.log()), () => session.log());
+		await session.check("After a reload the menu offers to continue", async () => /3\s+CONTINUE\s+site 1/.test(await session.log()), () => session.log());
 		await session.shot("browser-menu");
 		await session.close();
 	} finally {

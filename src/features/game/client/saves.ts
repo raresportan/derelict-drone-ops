@@ -38,5 +38,17 @@ export async function openSaves(): Promise<SaveStore> {
 		keepCampaign: (campaign) => keep({ ...data, campaign: campaign === null ? null : structuredClone(campaign) }),
 		keepBest: (best) => keep({ ...data, best: { ...best } }),
 		finishTutorial: () => keep({ ...data, tutorialDone: true }),
+		archive: () => data.archive,
+		keepLog: (id) => {
+			if (!data.archive.includes(id)) keep({ ...data, archive: [...data.archive, id] });
+		},
+		introSeen: () => data.introSeen,
+		markIntroSeen: () => {
+			if (!data.introSeen) keep({ ...data, introSeen: true });
+		},
+		endings: () => data.endings,
+		keepEnding: (ending) => {
+			if (!data.endings.includes(ending)) keep({ ...data, endings: [...data.endings, ending] });
+		},
 	};
 }

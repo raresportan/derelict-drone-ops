@@ -41,6 +41,7 @@ export function mountConsole(doc: Document, saves: SaveStore): Game {
 			const line = input.value.trim();
 			input.value = "";
 			if (line !== "") issue(line);
+			else game.skip();
 		} else if (event.key === "ArrowUp") {
 			event.preventDefault();
 			if (recall > 0) input.value = history[--recall] ?? "";
@@ -48,7 +49,10 @@ export function mountConsole(doc: Document, saves: SaveStore): Game {
 			event.preventDefault();
 			recall = Math.min(history.length, recall + 1);
 			input.value = history[recall] ?? "";
-		} else if (event.key === "Escape") input.value = "";
+		} else if (event.key === "Escape") {
+			input.value = "";
+			game.skip();
+		}
 		else if (event.key === "Tab") {
 			event.preventDefault();
 			const parts = input.value.split(/(\s+)/), last = (parts[parts.length - 1] ?? "").toLowerCase();
@@ -64,6 +68,7 @@ export function mountConsole(doc: Document, saves: SaveStore): Game {
 		if (target !== input && target.closest("button") === null) requestAnimationFrame(() => getSelection()?.toString() || input.focus({ preventScroll: true }));
 	});
 	canvas.addEventListener("click", (event) => {
+		game.skip();
 		const word = screens.wordAt(game, event.clientX, event.clientY);
 		if (word === null) return;
 		input.value = `${input.value !== "" && !/\s$/.test(input.value) ? `${input.value} ` : input.value}${word} `;

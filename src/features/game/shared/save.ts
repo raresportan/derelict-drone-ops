@@ -6,9 +6,12 @@ export interface SaveData {
 	campaign: Campaign | null;
 	best: Best | null;
 	tutorialDone: boolean;
+	archive: string[];
+	introSeen: boolean;
+	endings: string[];
 }
 
-export const EMPTY_SAVE: SaveData = { campaign: null, best: null, tutorialDone: false };
+export const EMPTY_SAVE: SaveData = { campaign: null, best: null, tutorialDone: false, archive: [], introSeen: false, endings: [] };
 
 export const CHANNELS = { load: "saves:load", write: "saves:write" } as const;
 
@@ -41,12 +44,20 @@ function campaign(v: unknown): Campaign | null {
 	const drones = v.drones.map(drone);
 	const stats = v.stats;
 	if (drones.some((d) => d === null) || !record(stats) || !whole(stats.scrap) || !whole(stats.rooms) || !whole(stats.kills)) return null;
-	return { seed: v.seed, jump: v.jump, fuel: v.fuel, scrap: v.scrap, drones: drones as DroneSpec[], stats: { scrap: stats.scrap, rooms: stats.rooms, kills: stats.kills } };
+	return { seed: v.seed, jump: v.jump, fuel: v.fuel, scrap: v.scrap, drones: drones as DroneSpec[], stats: { scrap: stats.scrap, rooms: stats.rooms, kills: stats.kills }, ended: v.ended === true };
 }
 
 /** Reads saved data, keeping each part that's whole and dropping any part that's damaged. */
 export function parseSave(raw: unknown): SaveData {
 	if (!record(raw)) return EMPTY_SAVE;
 	const best = record(raw.best) && whole(raw.best.jump) && whole(raw.best.scrap) ? { jump: raw.best.jump, scrap: raw.best.scrap } : null;
-	return { campaign: campaign(raw.campaign), best, tutorialDone: raw.tutorialDone === true };
+	const ids = (v: unknown, pattern: RegExp): string[] => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && pattern.test(x)))] : []);
+	return {
+		campaign: campaign(raw.campaign),
+		best,
+		tutorialDone: raw.tutorialDone === true,
+		archive: ids(raw.archive, /^(S\d{2}|C-[SUB]\d{2}|H-00)$/),
+		introSeen: raw.introSeen === true,
+		endings: ids(raw.endings, /^(deliver|broadcast)$/),
+	};
 }

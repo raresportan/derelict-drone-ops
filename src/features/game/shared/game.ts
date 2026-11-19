@@ -1,33 +1,44 @@
 import { ALIAS, missionCommand } from "./commands.ts";
 import { drydockCommand } from "./drydock.ts";
 import type { Rng } from "./rng.ts";
-import { baseDrones, difficulty, PRICE, SHIPS, START_FUEL, specOf, TUTORIAL_DIFFICULTY } from "./rules.ts";
+import { baseDrones, difficulty, PRICE, START_FUEL, specOf, TUTORIAL_DIFFICULTY } from "./rules.ts";
 import { dockDrones, tickMission } from "./sim.ts";
+import {
+	BRIEFING, CREW_TOTAL, type EndingText, FINAL_LOG, FINAL_SITE, type IntroScene, type IntroText, loadEnding, loadIntro, loadRegion, type Log, type RegionId, type RegionText,
+	REGIONS, regionOf, siteName, STORY_TOTAL,
+} from "./story.ts";
 import { buildTutorial } from "./tutorial.ts";
-import type { Campaign, Difficulty, Drone, DroneSpec, Mission, Mode, Over, SaveStore, Ship, Sink, Tutorial } from "./types.ts";
+import type { Campaign, Difficulty, Drone, DroneSpec, LogKind, Mission, Mode, Over, SaveStore, Ship, Sink, Tutorial } from "./types.ts";
 import { generate } from "./world.ts";
 
 /** A function key: its label and the command it types. */
 export type FKey = readonly [label: string, command: string] | null;
 
 const FKEYS: Record<Mode, readonly FKey[]> = {
-	menu: [["TUTORIAL", "1"], ["CAMPAIGN", "2"], ["CONTINUE", "3"], null, null, null, null, ["SND", "sound"], null],
+	menu: [["TUTORIAL", "1"], ["CAMPAIGN", "2"], ["CONTINUE", "3"], ["ARCHIVE", "4"], ["INTRO", "5"], null, null, ["SND", "sound"], null],
+	intro: [["SKIP", "skip"], null, null, null, null, null, null, ["SND", "sound"], null],
 	mission: [["HELP", "help"], ["STATUS", "status"], ["MOTION", "motion"], ["LURE", "lure 3"], ["STOP", "stop all"], ["RECALL", "nav all dock"], ["LABELS", "labels"], ["SND", "sound"], ["MENU", "menu"]],
-	drydock: [["HELP", "help"], ["STATUS", "status"], ["REPAIR", "repair all"], ["FUEL", "buy fuel"], null, null, ["JUMP", "jump"], ["SND", "sound"], ["MENU", "menu"]],
-	over: [["TUTORIAL", "tutorial"], ["CAMPAIGN", "campaign"], null, null, null, null, null, ["SND", "sound"], ["MENU", "menu"]],
+	drydock: [["HELP", "help"], ["STATUS", "status"], ["REPAIR", "repair all"], ["FUEL", "buy fuel"], ["ARCHIVE", "archive"], null, ["HOP", "hop"], ["SND", "sound"], ["MENU", "menu"]],
+	ending: [["DELIVER", "deliver"], ["BROADCAST", "broadcast"], null, null, ["ARCHIVE", "archive"], null, ["HOP ON", "hop"], ["SND", "sound"], ["MENU", "menu"]],
+	over: [["TUTORIAL", "tutorial"], ["CAMPAIGN", "campaign"], null, ["ARCHIVE", "archive"], null, null, null, ["SND", "sound"], ["MENU", "menu"]],
 };
 
 const WORDS: Record<Mode, readonly string[]> = {
-	mission: ["nav", "open", "close", "gather", "motion", "lure", "purge", "stop", "status", "undock", "labels", "sound", "clear", "help", "menu"],
-	drydock: ["repair", "rebuild", "upgrade", "buy", "jump", "status", "sound", "clear", "help", "menu", "armour", "thrust", "mk2", "fuel", "all"],
-	menu: ["tutorial", "campaign", "continue", "sound", "clear"],
-	over: ["tutorial", "campaign", "menu", "sound", "clear"],
+	mission: ["nav", "open", "close", "gather", "read", "motion", "lure", "purge", "stop", "status", "undock", "labels", "sound", "clear", "help", "menu"],
+	drydock: ["repair", "rebuild", "upgrade", "buy", "hop", "archive", "status", "sound", "clear", "help", "menu", "armour", "thrust", "mk2", "fuel", "all"],
+	menu: ["tutorial", "campaign", "continue", "archive", "intro", "sound", "clear"],
+	intro: ["skip", "sound"],
+	ending: ["deliver", "broadcast", "hop", "archive", "menu", "sound", "clear"],
+	over: ["tutorial", "campaign", "archive", "menu", "sound", "clear"],
 };
 
-/** Seconds between the tug casting off and what comes next, so the player sees how the boarding ended. */
+/** Seconds between the hopper lifting off and what comes next, so the player sees how the boarding ended. */
 export const CAST_OFF = { toDrydock: 2.6, toMenu: 3.2, afterLoss: 1.5 } as const;
 
-/** The whole game: which screen it's on, the campaign, and the boarding in progress. It runs on its own clock. */
+/** Scrap Halvard pays for the sample canisters. */
+export const DELIVERY_PAY = 25;
+
+/** The whole game: which screen it's on, the campaign, the boarding in progress, and the story text it has loaded. */
 export class Game {
 	mode: Mode = "menu";
 	campaign: Campaign | null = null;
@@ -39,6 +50,14 @@ export class Game {
 	readonly saves: SaveStore;
 	readonly rng: Rng;
 	#pending: { left: number; run: () => void } | null = null;
+	#regions = new Map<RegionId, RegionText>();
+	#requested = new Set<string>();
+	#loading = new Set<Promise<void>>();
+	#waiting: { ready: () => boolean; run: () => void }[] = [];
+	#intro: IntroText | null = null;
+	#introAt: { t: number; printed: number; then: () => void } | null = null;
+	#ending: EndingText | null = null;
+	#chosen: "deliver" | "broadcast" | null = null;
 
 	constructor(sink: Sink, saves: SaveStore, rng: Rng = Math.random) {
 		this.sink = sink;
@@ -50,14 +69,36 @@ export class Game {
 		return FKEYS[this.mode];
 	}
 
-	/** Words Tab can complete: commands first, then this ship's rooms and doors. */
+	/** Words Tab can complete: commands first, then this site's rooms and doors. */
 	completions(first: boolean): readonly string[] {
 		const m = this.mission;
 		if (first || this.mode !== "mission" || m === null) return WORDS[this.mode];
 		return [...m.rooms.map((r) => `r${r.num}`), ...m.doors.map((d) => d.name), "dock", "all"];
 	}
 
+	/** Where the intro is: its scene and how far into it, while it plays. */
+	get intro(): { scene: IntroScene; t: number; length: number } | null {
+		const at = this.#introAt, text = this.#intro;
+		if (this.mode !== "intro" || at === null || text === null) return null;
+		const current = [...text.scenes].reverse().find((s) => at.t >= s.at) ?? text.scenes[0]!;
+		return { scene: current.scene, t: at.t - current.at, length: text.length };
+	}
+
+	/** The story regions whose text is in memory now. */
+	loadedRegions(): RegionId[] {
+		return [...this.#regions.keys()];
+	}
+
+	/** Settles once nothing is loading: for tests and journeys that must see the text arrive. */
+	async ready(): Promise<void> {
+		while (this.#loading.size > 0) await Promise.all([...this.#loading]);
+	}
+
 	tick(dt: number): void {
+		for (const wait of this.#waiting.filter((w) => w.ready())) {
+			this.#waiting.splice(this.#waiting.indexOf(wait), 1);
+			wait.run();
+		}
 		if (this.#pending !== null) {
 			this.#pending.left -= dt;
 			if (this.#pending.left <= 0) {
@@ -66,12 +107,14 @@ export class Game {
 				run();
 			}
 		}
+		if (this.mode === "intro") this.#playIntro(dt);
 		const m = this.mission;
 		if (this.mode !== "mission" || m === null) {
 			this.threat = false;
 			return;
 		}
 		this.threat = tickMission(m, dt, this.sink, this.rng);
+		for (const done of m.reads.splice(0)) this.#archiveRead(m, done.drone, done.room);
 		if (m.end === null && this.#pending === null && m.drones.every((d) => !d.alive)) this.#after(CAST_OFF.afterLoss, () => this.#finish("lost"));
 		const t = m.tutorial;
 		if (t !== null && m.end === null) {
@@ -89,27 +132,77 @@ export class Game {
 		for (const part of line.split(";").map((s) => s.trim()).filter(Boolean)) this.#one(part);
 	}
 
+	/** Skips the intro, if it's playing. */
+	skip(): void {
+		if (this.mode === "intro") this.#endIntro();
+	}
+
 	showMenu(): void {
 		this.mission = null;
 		this.over = null;
 		this.#pending = null;
+		this.#introAt = null;
 		this.mode = "menu";
 		this.sink.clear();
-		const save = this.saves.campaign(), best = this.saves.best(), tutorialDone = this.saves.tutorialDone();
-		const lines: [string, "head" | "note" | "ok"][] = [
+		const save = this.saves.campaign(), best = this.saves.best(), tutorialDone = this.saves.tutorialDone(), logs = this.saves.archive().length;
+		const lines: [string, LogKind][] = [
 			["SCT-7 SALVAGE CONTROL TERMINAL · SALVAGE-OS v2.1", "head"],
-			["Three drones, one tug, and a long list of dead ships nobody else wants to board.", "note"],
+			["Contract 7731-K: the Lacuna complex, an ice moon gone silent. Three drones and a hopper.", "note"],
 			[`  1  TUTORIAL        a guided first boarding${tutorialDone ? " (completed)" : " — recommended"}`, tutorialDone ? "ok" : "head"],
-			["  2  NEW CAMPAIGN    jump from derelict to derelict until the fuel or the drones run out", "ok"],
+			["  2  NEW CAMPAIGN    21 sites across the Surface, the Underworks and the Bore", "ok"],
 		];
-		if (save !== null) lines.push([`  3  CONTINUE        jump ${save.jump} · ${save.scrap} scrap · ${save.fuel} fuel · ${save.drones.filter((d) => d.alive).length}/3 drones`, "ok"]);
-		if (best !== null) lines.push([`Best run: ${best.jump} derelicts boarded · ${best.scrap} scrap salvaged`, "note"]);
+		if (save !== null) lines.push([`  3  CONTINUE        site ${save.jump} · ${save.scrap} scrap · ${save.fuel} fuel · ${save.drones.filter((d) => d.alive).length}/3 drones`, "ok"]);
+		lines.push([`  4  ARCHIVE         ${logs} log${logs === 1 ? "" : "s"} recovered`, "ok"], ["  5  INTRO           replay the transmission", "ok"]);
+		if (best !== null) lines.push([`Best run: site ${best.jump} reached · ${best.scrap} scrap salvaged`, "note"]);
 		lines.push(["Type a number (or its name) and press Enter.", "note"]);
 		for (const [text, kind] of lines) this.sink.log(text, kind, true);
 	}
 
 	#after(seconds: number, run: () => void): void {
 		this.#pending = { left: seconds, run };
+	}
+
+	#when(ready: () => boolean, run: () => void): void {
+		if (ready()) run();
+		else this.#waiting.push({ ready, run });
+	}
+
+	#load<T>(key: string, start: () => Promise<T>, keep: (value: T) => void): void {
+		if (this.#requested.has(key)) return;
+		this.#requested.add(key);
+		const work: Promise<void> = start()
+			.then(keep)
+			.catch((error: unknown) => {
+				this.#requested.delete(key);
+				this.sink.log(`Data link lost loading ${key}: ${error instanceof Error ? error.message : String(error)}`, "warn");
+			})
+			.finally(() => this.#loading.delete(work));
+		this.#loading.add(work);
+	}
+
+	#want(id: RegionId): void {
+		if (!this.#regions.has(id)) this.#load(`region:${id}`, () => loadRegion(id), (text) => this.#regions.set(id, text));
+	}
+
+	/** Keeps only the text for site `site`'s region and the next one in memory. */
+	#keepNear(site: number): void {
+		const keep = new Set([regionOf(site).id, regionOf(site + 1).id]);
+		for (const id of keep) this.#want(id);
+		for (const id of [...this.#regions.keys()]) {
+			if (!keep.has(id)) {
+				this.#regions.delete(id);
+				this.#requested.delete(`region:${id}`);
+			}
+		}
+	}
+
+	#lookup(id: string): Log | null {
+		if (id === BRIEFING.id) return BRIEFING;
+		for (const text of this.#regions.values()) {
+			const found = [...text.story, ...text.crew].find((l) => l.id === id);
+			if (found !== undefined) return found;
+		}
+		return null;
 	}
 
 	#one(line: string): void {
@@ -126,29 +219,137 @@ export class Game {
 			this.sink.clear();
 			return;
 		}
+		if (this.mode === "intro") {
+			this.#endIntro();
+			return;
+		}
+		if (cmd === "archive" && this.mode !== "mission") {
+			this.#showArchive(args[0]);
+			return;
+		}
 		const m = this.mission, camp = this.campaign;
 		if (this.mode === "mission" && m !== null) {
 			missionCommand({ m, sink: this.sink, rng: this.rng, finish: () => this.#finish("undock"), leave: () => this.#leaveMission(), toggleLabels: () => (this.labels = !this.labels) }, cmd, args, word);
 		} else if (this.mode === "drydock" && camp !== null) {
 			drydockCommand({ camp, sink: this.sink, jump: () => this.#jump(), leave: () => this.showMenu(), save: () => this.saves.keepCampaign(camp) }, cmd, args);
-		} else this.#menuCommand(cmd);
+		} else if (this.mode === "ending" && camp !== null) this.#endingCommand(camp, cmd);
+		else this.#menuCommand(cmd);
 	}
 
 	#menuCommand(cmd: string): void {
 		if (cmd === "1" || cmd === "tutorial") this.#startTutorial();
-		else if (cmd === "2" || cmd === "campaign" || cmd === "new") this.#newCampaign();
-		else if ((cmd === "3" || cmd === "continue") && this.mode === "menu") this.#continue();
+		else if (cmd === "2" || cmd === "campaign" || cmd === "new") {
+			if (this.saves.introSeen()) this.#newCampaign();
+			else this.#startIntro(() => this.#newCampaign());
+		} else if ((cmd === "3" || cmd === "continue") && this.mode === "menu") this.#continue();
+		else if (cmd === "4") this.#showArchive(undefined);
+		else if (cmd === "5" || cmd === "intro") this.#startIntro(() => this.showMenu());
 		else if (cmd === "menu") this.showMenu();
-		else if (cmd === "help") this.sink.log("Type 1 (tutorial), 2 (new campaign) or 3 (continue).", "note");
+		else if (cmd === "help") this.sink.log("Type 1 tutorial, 2 new campaign, 3 continue, 4 archive or 5 intro.", "note");
 		else {
 			this.sink.log(`Unknown option "${cmd}".`, "warn");
 			this.sink.sound("err");
 		}
 	}
 
-	#board(ship: Ship, o: Difficulty, specs: readonly DroneSpec[], name: string, tutorial: Tutorial | null): Mission {
+	#startIntro(then: () => void): void {
+		this.mission = null;
+		this.#pending = null;
+		this.mode = "intro";
+		this.sink.clear();
+		this.#introAt = { t: 0, printed: 0, then };
+		if (this.#intro === null) this.#load("intro", loadIntro, (text) => (this.#intro = text));
+	}
+
+	#playIntro(dt: number): void {
+		const at = this.#introAt, text = this.#intro;
+		if (at === null || text === null) return;
+		at.t += dt;
+		while (at.printed < text.lines.length && text.lines[at.printed]!.at <= at.t) {
+			const line = text.lines[at.printed++]!;
+			this.sink.log(line.text, line.kind);
+		}
+		if (at.t >= text.length) this.#endIntro();
+	}
+
+	#endIntro(): void {
+		const at = this.#introAt;
+		this.#introAt = null;
+		this.#intro = null;
+		this.#requested.delete("intro");
+		this.saves.markIntroSeen();
+		if (at !== null) at.then();
+	}
+
+	#showArchive(id: string | undefined): void {
+		for (const region of REGIONS) this.#want(region.id);
+		this.sink.log("Opening the archive…", "note");
+		this.#when(
+			() => REGIONS.every((r) => this.#regions.has(r.id)),
+			() => {
+				const read = new Set(this.saves.archive());
+				const pick = id?.toUpperCase();
+				if (pick !== undefined) {
+					const log = read.has(pick) ? this.#lookup(pick) : null;
+					if (log === null) this.sink.log(`No archived log ${pick}.`, "warn");
+					else this.#printLog(log, false);
+					return;
+				}
+				const all = [...this.#regions.values()];
+				const story = all.flatMap((t) => t.story).sort((a, b) => a.id.localeCompare(b.id));
+				const crew = all.flatMap((t) => t.crew).filter((l) => read.has(l.id));
+				this.sink.log(`ARCHIVE · story ${story.filter((l) => read.has(l.id)).length}/${STORY_TOTAL} · crew ${crew.length}/${CREW_TOTAL}${read.has(BRIEFING.id) ? " · briefing" : ""}`, "head");
+				for (const l of story) this.sink.log(read.has(l.id) ? `  ${l.id}  ${l.title} — ${l.author}` : `  ${l.id}  ░░░░░░░░░░ not yet recovered`, read.has(l.id) ? "ok" : "note");
+				for (const l of crew) this.sink.log(`  ${l.id}  ${l.title} — ${l.author}`, "drone");
+				if (read.has(BRIEFING.id)) this.sink.log(`  ${BRIEFING.id}  ${BRIEFING.title} — ${BRIEFING.author}`, "drone");
+				this.sink.log("Type ARCHIVE <id> to read one, e.g. archive S01.", "note");
+				if (this.campaign !== null && this.mode !== "menu") this.#keepNear(this.campaign.jump);
+			},
+		);
+	}
+
+	#printLog(log: Log, fresh: boolean): void {
+		this.sink.log(`▤ ${log.id} · ${log.title.toUpperCase()} — ${log.author}`, "head", fresh);
+		for (const line of log.lines) this.sink.log(`  ${line}`, "loot", fresh);
+	}
+
+	#archiveRead(m: Mission, droneId: number, room: number): void {
+		const terminal = m.rooms[room]?.terminal;
+		if (terminal === null || terminal === undefined || terminal.read) return;
+		const log = this.#lookup(terminal.log);
+		if (log === null) {
+			this.sink.log(`Drone ${droneId}: terminal data scrambled. Try again in a moment.`, "warn");
+			return;
+		}
+		terminal.read = true;
+		const known = this.saves.archive().includes(log.id);
+		this.saves.keepLog(log.id);
+		this.#printLog(log, true);
+		if (terminal.story) {
+			const count = this.saves.archive().filter((id) => id.startsWith("S")).length;
+			this.sink.log(known ? "Already in the archive." : ` STORY LOG ${count}/${STORY_TOTAL} ARCHIVED `, known ? "note" : "alarm", true);
+		}
+		this.sink.sound("ping");
+	}
+
+	#placeTerminals(m: Mission): void {
+		const text = this.#regions.get(regionOf(m.site).id);
+		if (text === undefined) return;
+		const read = new Set(this.saves.archive());
+		const rooms = m.rooms.map((_, i) => i).filter((i) => i !== m.start && m.depth[i]! >= 1);
+		if (rooms.length === 0) return;
+		const story = text.story.find((l) => !read.has(l.id) && l.from <= m.site);
+		const deepest = [...rooms].sort((a, b) => m.depth[b]! - m.depth[a]!)[0]!;
+		if (story !== undefined) m.rooms[deepest]!.terminal = { log: story.id, story: true, read: false };
+		const unread = text.crew.filter((l) => !read.has(l.id));
+		const crew = (unread.length > 0 ? unread : text.crew)[Math.floor(this.rng() * (unread.length > 0 ? unread.length : text.crew.length))];
+		const free = rooms.filter((i) => m.rooms[i]!.terminal === null);
+		if (crew !== undefined && free.length > 0 && (story === undefined || this.rng() < 0.65)) m.rooms[free[Math.floor(this.rng() * free.length)]!]!.terminal = { log: crew.id, story: false, read: false };
+	}
+
+	#board(ship: Ship, o: Difficulty, specs: readonly DroneSpec[], name: string, site: number, tutorial: Tutorial | null): Mission {
 		const drones: Drone[] = specs.map((s) => ({ ...s, x: 0, y: 0, node: ship.dock, path: [], state: "DOCKED", cargo: 0, fuel: 0, gather: 0, gatherFor: 0, dir: 0, hit: 0, dest: null, wreck: false }));
-		const m: Mission = { ...ship, o, ship: name, drones, bank: { scrap: 0, fuel: 0 }, t: 0, fx: [], lure: null, motionCd: 0, end: null, undockArm: false, menuArm: false, scanned: false, tutorial };
+		const m: Mission = { ...ship, o, ship: name, site, reads: [], drones, bank: { scrap: 0, fuel: 0 }, t: 0, fx: [], lure: null, motionCd: 0, end: null, undockArm: false, menuArm: false, scanned: false, tutorial };
 		dockDrones(m);
 		this.mission = m;
 		this.#pending = null;
@@ -159,14 +360,14 @@ export class Game {
 
 	#startTutorial(): void {
 		const { ship, tutorial } = buildTutorial(this.rng);
-		this.#board(ship, TUTORIAL_DIFFICULTY, baseDrones(), "TRAINING HULK PRIMER", tutorial);
+		this.#board(ship, TUTORIAL_DIFFICULTY, baseDrones(), "TRAINING HULK PRIMER", 0, tutorial);
 		this.sink.log("TRAINING TETHER: TRAINING HULK PRIMER. Simulated hazards; real lessons.", "head", true);
 		this.sink.log("Follow the highlighted line under the log. The map pulses where to look.", "note", true);
 	}
 
 	#newCampaign(): void {
-		this.campaign = { seed: Math.floor(this.rng() * 1e6), jump: 0, fuel: START_FUEL, scrap: 0, drones: baseDrones(), stats: { scrap: 0, rooms: 0, kills: 0 } };
-		this.sink.log("New campaign. The tug burns its first fuel cell toward a derelict…", "head");
+		this.campaign = { seed: Math.floor(this.rng() * 1e6), jump: 0, fuel: START_FUEL, scrap: 0, drones: baseDrones(), stats: { scrap: 0, rooms: 0, kills: 0 }, ended: false };
+		this.sink.log("New contract. The hopper burns its first fuel cell toward Lacuna…", "head");
 		this.#jump(true);
 	}
 
@@ -183,7 +384,7 @@ export class Game {
 	#jump(first = false): void {
 		const camp = this.campaign!;
 		if (camp.fuel < 1) {
-			this.sink.log("No fuel. BUY FUEL or the tug drifts.", "warn");
+			this.sink.log("No fuel. BUY FUEL or the hopper stays grounded.", "warn");
 			this.sink.sound("err");
 			return;
 		}
@@ -193,17 +394,26 @@ export class Game {
 			return;
 		}
 		camp.fuel--;
-		camp.jump++;
+		camp.jump = camp.ended ? camp.jump + 1 : Math.min(camp.jump + 1, FINAL_SITE);
 		this.sink.sound("jump");
-		const o = difficulty(camp.jump, this.rng());
-		const ship = generate((camp.seed + camp.jump * 7919) % 999983, o, false, this.rng);
-		const m = this.#board(ship, o, camp.drones, SHIPS[(camp.seed + camp.jump) % SHIPS.length]!, null);
-		const firstDoor = m.doors.find((d) => !d.air && (d.a === m.start || d.b === m.start));
-		const typed = (text: string, kind: "head" | "warn" | "ok" | "note") => this.sink.log(text, kind, true);
-		typed(`JUMP ${camp.jump} · HARD TETHER ESTABLISHED WITH ${m.ship}.`, "head");
-		typed(`Hull reads cold. ${o.creatures} biological trace${o.creatures > 1 ? "s" : ""} on the long-range sweep${o.rad ? `, ${o.rad} radiation leak${o.rad > 1 ? "s" : ""}` : ""}.`, "warn");
-		typed(`Fuel left after this jump: ${camp.fuel}. Find fuel cells (◎) or buy fuel with scrap at the drydock.`, "ok");
-		typed(first ? `TYPE HELP OR PRESS F1.  Try:  nav 1 r${m.rooms[m.start]!.num}  ·  open ${firstDoor?.name ?? "d1"}  ·  motion` : "Drones standing by in the dock behind a1.", "note");
+		const site = camp.jump, region = regionOf(site);
+		this.#keepNear(site);
+		const o = difficulty(site, this.rng());
+		const ship = generate((camp.seed + site * 7919) % 999983, o, false, this.rng);
+		const m = this.#board(ship, o, camp.drones, siteName(site), site, null);
+		this.#when(
+			() => this.#regions.has(region.id),
+			() => {
+				if (this.mission !== m) return;
+				this.#placeTerminals(m);
+				const typed = (text: string, kind: LogKind) => this.sink.log(text, kind, true);
+				if (site === region.first) for (const line of this.#regions.get(region.id)!.beat) typed(line, "head");
+				const firstDoor = m.doors.find((d) => !d.air && (d.a === m.start || d.b === m.start));
+				typed(`SITE ${site}${site <= FINAL_SITE ? `/${FINAL_SITE}` : ""} · ${m.ship} · ${region.name}`, "head");
+				typed(`${o.creatures} biological trace${o.creatures > 1 ? "s" : ""} on the sweep${o.rad ? `, ${o.rad} radiation leak${o.rad > 1 ? "s" : ""}` : ""}. Fuel left after this hop: ${camp.fuel}.`, "warn");
+				typed(first ? `TYPE HELP OR PRESS F1.  Try:  nav 1 r${m.rooms[m.start]!.num}  ·  open ${firstDoor?.name ?? "d1"}  ·  motion  ·  read` : "Drones standing by in the dock behind a1. Powered terminals hold the crew's logs: READ them.", "note");
+			},
+		);
 	}
 
 	#finish(kind: "undock" | "lost"): void {
@@ -214,16 +424,16 @@ export class Game {
 			for (const d of m.drones.filter((x) => x.alive && x.node !== m.dock)) {
 				d.alive = false;
 				d.state = "LOST";
-				this.sink.log(`${d.name} left aboard ${m.ship}. Signal fades.`, "warn");
+				this.sink.log(`${d.name} left behind at ${m.ship}. Signal fades.`, "warn");
 			}
-			this.sink.log(`════════ UNDOCKED FROM ${m.ship} ════════`, "head");
+			this.sink.log(`════════ LIFTED OFF FROM ${m.ship} ════════`, "head");
 			this.sink.sound("ping");
-		} else this.sink.log("════════ ALL DRONE SIGNALS LOST — TUG CASTS OFF ════════", "alarm");
+		} else this.sink.log("════════ ALL DRONE SIGNALS LOST — HOPPER LIFTS OFF ════════", "alarm");
 		const surveyed = m.rooms.filter((r) => r.seen).length, kills = m.creatures.filter((c) => !c.alive).length;
 		this.sink.log(`Recovered ${m.bank.scrap} scrap, ${m.bank.fuel} fuel · ${surveyed}/${m.rooms.length} rooms surveyed`, "head");
 		if (m.tutorial !== null) {
 			this.saves.finishTutorial();
-			this.sink.log(kind === "undock" ? "Tutorial complete. The real derelicts are bigger, darker and less forgiving." : "Training drones lost. That is the lesson: close doors behind you.", "loot");
+			this.sink.log(kind === "undock" ? "Tutorial complete. Lacuna is bigger, darker and less forgiving." : "Training drones lost. That is the lesson: close doors behind you.", "loot");
 			this.#after(CAST_OFF.toMenu, () => this.showMenu());
 			return;
 		}
@@ -234,13 +444,48 @@ export class Game {
 		camp.stats.scrap += m.bank.scrap;
 		camp.stats.rooms += surveyed;
 		camp.stats.kills += kills;
-		this.#after(CAST_OFF.toDrydock, () => this.#enterDrydock(false));
+		const finale = kind === "undock" && m.site === FINAL_SITE && !camp.ended;
+		this.#after(CAST_OFF.toDrydock, () => (finale ? this.#enterEnding() : this.#enterDrydock(false)));
 	}
 
 	#leaveMission(): void {
 		const m = this.mission;
 		if (m !== null && m.tutorial === null && this.campaign !== null) this.sink.log("Back to the last drydock save.", "note");
 		this.showMenu();
+	}
+
+	#enterEnding(): void {
+		this.mission = null;
+		this.mode = "ending";
+		this.#chosen = null;
+		this.sink.clear();
+		this.saves.keepCampaign(this.campaign);
+		if (this.#ending === null) this.#load("ending", loadEnding, (text) => (this.#ending = text));
+		this.#when(() => this.#ending !== null, () => {
+			for (const line of this.#ending!.prompt) this.sink.log(line, "head", true);
+		});
+	}
+
+	#endingCommand(camp: Campaign, cmd: string): void {
+		const text = this.#ending;
+		if ((cmd === "deliver" || cmd === "broadcast") && text !== null) {
+			if (this.#chosen !== null) {
+				this.sink.log("The choice is made.", "note");
+				return;
+			}
+			this.#chosen = cmd;
+			const knew = this.saves.archive().includes(FINAL_LOG);
+			const words = cmd === "deliver" ? text.deliver : knew ? text.broadcast : text.broadcastBlind;
+			if (cmd === "deliver") camp.scrap += DELIVERY_PAY;
+			camp.ended = true;
+			this.saves.keepEnding(cmd);
+			this.saves.keepCampaign(camp);
+			for (const line of words) this.sink.log(line, "loot", true);
+			if (cmd === "deliver") this.sink.log(`+${DELIVERY_PAY} scrap`, "ok", true);
+			for (const line of text.after) this.sink.log(line, "head", true);
+		} else if ((cmd === "jump" || cmd === "continue") && this.#chosen !== null) this.#enterDrydock(false);
+		else if (cmd === "menu") this.showMenu();
+		else this.sink.log(this.#chosen === null ? "DELIVER or BROADCAST?" : "HOP on into the deep sectors, or MENU.", "warn");
 	}
 
 	#enterDrydock(resumed: boolean): void {
@@ -255,11 +500,13 @@ export class Game {
 			return;
 		}
 		this.saves.keepCampaign(camp);
-		const typed = (text: string, kind: "head" | "ok" | "note" | "warn") => this.sink.log(text, kind, true);
-		typed(resumed ? `Campaign restored · jump ${camp.jump}.` : "Tug clear of the derelict. Drydock systems online.", "head");
+		this.#keepNear(camp.jump);
+		const next = camp.ended ? camp.jump + 1 : Math.min(camp.jump + 1, FINAL_SITE);
+		const typed = (text: string, kind: LogKind) => this.sink.log(text, kind, true);
+		typed(resumed ? `Campaign restored · site ${camp.jump}.` : "Hopper clear of the site. Drydock systems online.", "head");
 		typed(`Scrap ${camp.scrap} · fuel ${camp.fuel} · drones ${alive}/3. Spend scrap on repairs, rebuilds and upgrades.`, "ok");
-		typed(camp.fuel > 0 ? "Type JUMP (F7) when ready. Progress saves here automatically." : `No fuel — BUY FUEL (${PRICE.fuel} scrap) before you can jump.`, camp.fuel > 0 ? "note" : "warn");
-		typed("Type HELP for drydock commands.", "note");
+		typed(camp.fuel > 0 ? `Next: site ${next}, ${siteName(next)}. Type HOP (F7) when ready. Progress saves here.` : `No fuel — BUY FUEL (${PRICE.fuel} scrap) before you can hop.`, camp.fuel > 0 ? "note" : "warn");
+		typed("Type HELP for drydock commands, ARCHIVE for the logs you've recovered.", "note");
 	}
 
 	#gameOver(reason: string): void {
@@ -272,8 +519,7 @@ export class Game {
 		this.mode = "over";
 		this.sink.sound("boom");
 		this.sink.log(` CAMPAIGN OVER — ${reason} `, "alarm", true);
-		this.sink.log(`Derelicts boarded: ${this.over.jump} · scrap salvaged: ${this.over.scrap} · rooms surveyed: ${this.over.rooms} · lifeforms killed: ${this.over.kills}`, "head", true);
-		this.sink.log("Type CAMPAIGN to start again, TUTORIAL, or MENU.", "note", true);
+		this.sink.log(`Sites reached: ${this.over.jump} · scrap salvaged: ${this.over.scrap} · rooms surveyed: ${this.over.rooms} · lifeforms killed: ${this.over.kills}`, "head", true);
+		this.sink.log("The logs you read stay in the ARCHIVE. Type CAMPAIGN to go back, TUTORIAL, or MENU.", "note", true);
 	}
 }
-

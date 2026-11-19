@@ -24,21 +24,21 @@ export const START_FUEL = 2;
 
 export const baseDrones = (): DroneSpec[] => ROLES.map((role, i) => ({ id: i + 1, name: role.name, mod: role.mod, hull: 100, alive: true, armour: 0, thrust: 0, mk2: false }));
 
-/** How hard derelict number `jump` is: each one bigger, with more and faster lifeforms. */
+/** How hard site number `jump` is: across the 21 sites, bigger, with more, faster and harder-hitting lifeforms. */
 export function difficulty(jump: number, fuelRoll = 0): Difficulty {
 	return {
-		W: Math.min(40, 26 + 2 * jump),
-		H: Math.min(24, 16 + jump),
-		creatures: Math.min(7, 1 + jump),
-		rad: Math.min(4, Math.floor((jump + 1) / 2)),
-		purge: 2 + (jump > 2 ? 1 : 0),
-		scrap: 7 + 2 * jump,
-		fuel: jump < 4 ? 2 : 1 + (fuelRoll < 0.5 ? 1 : 0),
+		W: Math.min(40, 26 + jump),
+		H: Math.min(24, 16 + Math.floor(jump / 2)),
+		creatures: Math.min(9, 1 + Math.floor(jump * 0.4)),
+		rad: Math.min(5, Math.floor(jump / 3)),
+		purge: 2 + Math.min(2, Math.floor(jump / 7)),
+		scrap: 7 + jump,
+		fuel: jump < 8 ? 2 : 1 + (fuelRoll < 0.5 ? 1 : 0),
 		openP: 0.15,
 		remove: 0.17,
-		chase: Math.min(2.3, 1.75 + 0.06 * jump),
+		chase: Math.min(2.4, 1.7 + 0.03 * jump),
 		wander: 1.2,
-		dmg: Math.min(75, 40 + 6 * jump),
+		dmg: Math.min(90, 38 + 2.5 * jump),
 	};
 }
 

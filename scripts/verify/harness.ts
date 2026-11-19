@@ -35,6 +35,14 @@ export class Session extends JourneySession {
 		await prompt.press("Enter");
 	}
 
+	/** Starts a new campaign, skipping the intro if it plays, and waits for site 1. */
+	async startCampaign(): Promise<void> {
+		await this.type("2");
+		await this.until(async () => ["[ TRANSMISSION ]", "[ SCHEMATIC ]"].includes(await this.text("#mapTitle")), "the intro or site 1");
+		if ((await this.text("#mapTitle")) === "[ TRANSMISSION ]") await this.page.locator("#cmd").press("Enter");
+		await this.until(async () => (await this.text("#mapTitle")) === "[ SCHEMATIC ]", "site 1");
+	}
+
 	text(selector: string): Promise<string> {
 		return this.page.locator(selector).innerText();
 	}

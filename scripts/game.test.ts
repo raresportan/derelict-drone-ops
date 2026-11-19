@@ -1,7 +1,7 @@
 // The game's modes, rules and saves, played through commands on its own clock: run with npm test.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { askedCommand, type Best, type Campaign, CAST_OFF, Game, type LogKind, PRICE, type SaveStore, seeded, type Sink, START_FUEL } from "../src/features/game/shared/index.ts";
+import { askedCommand, type Best, type Campaign, CAST_OFF, DELIVERY_PAY, difficulty, FINAL_SITE, Game, type LogKind, PRICE, READ_SECONDS, type SaveStore, seeded, type Sink, START_FUEL } from "../src/features/game/shared/index.ts";
 
 class Recorder implements Sink {
 	lines: { text: string; kind: LogKind }[] = [];
@@ -25,6 +25,27 @@ class MemorySaves implements SaveStore {
 	record: Best | null = null;
 	done = false;
 	writes = 0;
+	logs: string[] = [];
+	seen = true;
+	ends: string[] = [];
+	archive(): readonly string[] {
+		return this.logs;
+	}
+	keepLog(id: string): void {
+		if (!this.logs.includes(id)) this.logs.push(id);
+	}
+	introSeen(): boolean {
+		return this.seen;
+	}
+	markIntroSeen(): void {
+		this.seen = true;
+	}
+	endings(): readonly string[] {
+		return this.ends;
+	}
+	keepEnding(e: string): void {
+		this.ends.push(e);
+	}
 	campaign(): Campaign | null {
 		return this.saved === null ? null : structuredClone(this.saved);
 	}
@@ -132,18 +153,25 @@ test("the drydock charges what it says and refuses what can't be paid", () => {
 	assert.equal(camp.scrap, 2);
 });
 
-test("each jump burns fuel and boards a bigger, busier derelict", () => {
+test("each hop burns fuel and flies to the next, bigger site", () => {
 	const { game } = setup();
 	game.command("2");
 	const first = game.mission!;
 	game.command("undock");
 	run(game, CAST_OFF.toDrydock + 0.2);
-	game.command("jump");
+	game.command("hop");
 	const second = game.mission!;
 	assert.equal(game.campaign!.jump, 2);
 	assert.equal(game.campaign!.fuel, START_FUEL - 2);
-	assert.ok(second.creatures.length > first.creatures.length);
+	assert.equal(second.ship, "LANDING PAD CONTROL");
 	assert.ok(second.o.W > first.o.W);
+});
+
+test("lifeforms grow more numerous, faster and deadlier across the three regions", () => {
+	const [surface, underworks, bore] = [1, 8, 15].map((site) => difficulty(site));
+	for (const key of ["creatures", "chase", "dmg"] as const) {
+		assert.ok(surface![key] < underworks![key] && underworks![key] < bore![key], key);
+	}
 });
 
 test("with no fuel and nothing to buy it with, the campaign ends and the best run is kept", () => {
@@ -195,4 +223,123 @@ test("a purge kills every lifeform in its room, once", () => {
 	assert.ok(m.creatures.filter((c) => c.node === lair).every((c) => !c.alive));
 	game.command(`purge r${room.num}`);
 	assert.ok(sink.saw(/valve already spent/));
+});
+
+async function settle(game: Game): Promise<void> {
+	await game.ready();
+	game.tick(0);
+}
+
+async function toDrydockAt(site: number): Promise<{ game: Game; sink: Recorder; saves: MemorySaves }> {
+	const t = setup();
+	t.game.command("2");
+	await settle(t.game);
+	t.game.campaign!.jump = site - 1;
+	t.game.command("undock");
+	run(t.game, CAST_OFF.toDrydock + 0.2);
+	t.game.campaign!.fuel = 5;
+	return t;
+}
+
+test("a first campaign opens with the intro, which plays through or skips into site 1", async () => {
+	for (const skip of [false, true]) {
+		const { game, sink, saves } = setup();
+		saves.seen = false;
+		game.command("2");
+		assert.equal(game.mode, "intro");
+		await settle(game);
+		if (skip) game.skip();
+		else {
+			run(game, 2);
+			assert.ok(sink.saw(/INCOMING TRANSMISSION/));
+			run(game, 24);
+		}
+		assert.equal(game.mode, "mission", skip ? "skipped" : "played");
+		assert.equal(game.mission!.site, 1);
+		assert.equal(saves.seen, true);
+	}
+});
+
+test("site 1 holds the first story log, and reading it archives it", async () => {
+	const { game, sink, saves } = setup();
+	game.command("2");
+	await settle(game);
+	const m = game.mission!;
+	const room = m.rooms.findIndex((r) => r.terminal?.story === true);
+	assert.ok(room >= 0, "no story terminal at site 1");
+	assert.equal(m.rooms[room]!.terminal!.log, "S01");
+	const moth = m.drones[1]!;
+	Object.assign(moth, { node: room, x: m.rooms[room]!.cx, y: m.rooms[room]!.cy });
+	game.command("read 2");
+	run(game, READ_SECONDS + 0.2);
+	assert.deepEqual(saves.logs.filter((id) => id.startsWith("S")), ["S01"]);
+	assert.ok(sink.saw(/Warm water at 2\.1 km/));
+	assert.ok(sink.saw(/STORY LOG 1\/15 ARCHIVED/));
+});
+
+test("story logs come in order, only as deep as the site allows, and never twice", async () => {
+	const { game, saves } = setup();
+	saves.logs = ["S01", "S02", "S03"];
+	game.command("2");
+	await settle(game);
+	assert.ok(game.mission!.rooms.every((r) => r.terminal?.story !== true), "S04 waits for site 5");
+	const later = await toDrydockAt(5);
+	later.saves.logs = ["S01", "S02", "S03"];
+	later.game.command("hop");
+	await settle(later.game);
+	assert.deepEqual(later.game.mission!.rooms.filter((r) => r.terminal?.story).map((r) => r.terminal!.log), ["S04"]);
+});
+
+test("only the current and next region's text stays in memory", async () => {
+	const { game } = await toDrydockAt(8);
+	await settle(game);
+	assert.deepEqual(game.loadedRegions().sort(), ["surface", "underworks"], "after site 7 the Underworks is fetched ahead");
+	game.command("hop");
+	await settle(game);
+	assert.equal(game.mission!.site, 8);
+	assert.deepEqual(game.loadedRegions(), ["underworks"], "the Surface's text is let go");
+});
+
+test("undocking from the Bore floor brings the ending, and the run goes on into the deep sectors", async () => {
+	const { game, sink, saves } = await toDrydockAt(FINAL_SITE);
+	game.command("hop");
+	await settle(game);
+	assert.equal(game.mission!.ship, "THE BORE FLOOR");
+	game.command("undock");
+	run(game, CAST_OFF.toDrydock + 0.2);
+	await settle(game);
+	assert.equal(game.mode, "ending");
+	const scrap = game.campaign!.scrap;
+	game.command("deliver");
+	assert.equal(game.campaign!.scrap, scrap + DELIVERY_PAY);
+	assert.deepEqual(saves.ends, ["deliver"]);
+	game.command("broadcast");
+	assert.ok(sink.saw(/The choice is made/));
+	game.command("hop");
+	assert.equal(game.mode, "drydock");
+	game.command("hop");
+	assert.equal(game.mission!.ship, "DEEP SECTOR 1");
+});
+
+test("losing the fleet on the Bore floor means trying it again, not skipping the ending", async () => {
+	const { game } = await toDrydockAt(FINAL_SITE);
+	game.command("hop");
+	game.campaign!.scrap = 20;
+	for (const d of game.mission!.drones) d.hull = -1;
+	run(game, CAST_OFF.afterLoss + CAST_OFF.toDrydock + 0.5);
+	assert.equal(game.mode, "drydock");
+	game.command("rebuild 1; hop");
+	assert.equal(game.mission!.site, FINAL_SITE);
+});
+
+test("the archive lists what was found and reads it back", async () => {
+	const { game, sink, saves } = setup();
+	saves.logs = ["S01", "C-U03"];
+	game.command("4");
+	await settle(game);
+	assert.ok(sink.saw(/ARCHIVE · story 1\/15 · crew 1\/30/));
+	assert.ok(sink.saw(/S02 {2}░+ not yet recovered/));
+	game.command("archive c-u03");
+	await settle(game);
+	assert.ok(sink.saw(/Twenty if Okafor keeps sleepwalking/));
 });

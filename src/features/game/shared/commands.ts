@@ -8,6 +8,7 @@ export const MISSION_HELP: readonly [string, LogKind][] = [
 	["  nav <drones> <room>     move along open doors          nav 1 2 r5  ·  nav all dock", "note"],
 	["  open / close <doors>    work doors (a door cannot close on something in its frame)", "note"],
 	["  gather <drones>         collect salvage and fuel cells in the drone's room", "note"],
+	["  read <drone>            read a powered terminal in the drone's room (3 s); logs go to the archive", "note"],
 	["  motion                  WREN (1) scans for lifeforms through walls", "note"],
 	["  lure 3                  BUOY (3) sounds a decoy; lifeforms come to it", "note"],
 	["  purge <room>            fire a surveyed purge valve — kills everything inside, once", "note"],
@@ -18,7 +19,7 @@ export const MISSION_HELP: readonly [string, LogKind][] = [
 export const ALIAS: Record<string, string> = {
 	n: "nav", navigate: "nav", go: "nav", move: "nav", o: "open", c: "close", g: "gather", m: "motion", scan: "motion", l: "lure", p: "purge", vent: "purge",
 	s: "stop", st: "status", "?": "help", h: "help", cls: "clear", label: "labels", icons: "labels", leave: "undock", fix: "repair", build: "rebuild", up: "upgrade",
-	quit: "menu", title: "menu", armor: "armour",
+	quit: "menu", title: "menu", armor: "armour", rd: "read", hop: "jump", launch: "jump",
 };
 
 /** The drone ids named in `words` (numbers, names, or "all"), and the words left over. */
@@ -164,6 +165,34 @@ function gather(h: MissionHost, args: string[]): void {
 	}
 }
 
+/** How long a drone takes to pull a log off a terminal. */
+export const READ_SECONDS = 3;
+
+function read(h: MissionHost, args: string[]): void {
+	const { m, sink } = h;
+	const { ids } = parseDrones(args, m.drones);
+	const unread = (d: Drone) => d.alive && d.node !== m.dock && m.rooms[d.node]!.terminal?.read === false;
+	const d = ids.length > 0 ? live(h, ids[0]!) : (m.drones.find(unread) ?? null);
+	if (d === null) {
+		if (ids.length === 0) sink.log("No drone is beside an unread terminal. Usage: read <drone>", "warn");
+		return;
+	}
+	const terminal = d.node === m.dock ? null : m.rooms[d.node]!.terminal;
+	if (terminal === null) {
+		sink.log(`Drone ${d.id}: no terminal in ${nodeName(m, d.node)}.`, "warn");
+		sink.sound("err");
+		return;
+	}
+	if (terminal.read) {
+		sink.log(`Drone ${d.id}: that terminal's log is already archived.`, "note");
+		return;
+	}
+	d.path = [];
+	d.state = "READING";
+	d.gather = d.gatherFor = READ_SECONDS;
+	sink.log(`Drone ${d.id} jacking into the terminal in ${nodeName(m, d.node)}…`, "drone");
+}
+
 function motion(h: MissionHost): void {
 	const { m, sink } = h;
 	const d = m.drones[0]!;
@@ -298,6 +327,8 @@ export function missionCommand(h: MissionHost, cmd: string, args: string[], word
 			return doors(h, cmd === "open", args);
 		case "gather":
 			return gather(h, args);
+		case "read":
+			return read(h, args);
 		case "motion":
 			return motion(h);
 		case "lure":
