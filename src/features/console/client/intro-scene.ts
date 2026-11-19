@@ -1,5 +1,6 @@
 import type { IntroScene } from "../../game/shared/index.ts";
 import { alpha, C } from "./palette.ts";
+import { beaconAt } from "./sos.ts";
 
 const FONT = 'Menlo,Consolas,"Courier New",monospace';
 
@@ -100,15 +101,18 @@ function transmission(ctx: CanvasRenderingContext2D, w: number, h: number, f: Fr
 	ctx.fillRect(sx, sy, sw, sh);
 	halvardMark(ctx, w / 2, sy + sh * 0.42, sh * 0.26, f.at);
 	text(ctx, "HALVARD", w / 2, sy + sh * 0.84, C.hi, Math.max(12, sh * 0.09));
-	const cols = Math.max(4, Math.floor(w / 140));
-	ctx.font = `${Math.max(10, Math.min(13, w / 90))}px ${FONT}`;
+	const size = Math.max(15, Math.min(24, w / 42)), step = size * 4, lines = Math.ceil(h / (size * 1.5)) + 1;
+	const cols = Math.max(2, Math.floor((sx - 24) / step)) * 2;
+	ctx.font = `${size}px ${FONT}`;
 	ctx.textAlign = "left";
+	ctx.textBaseline = "middle";
 	for (let c = 0; c < cols; c++) {
-		const x = c < cols / 2 ? 16 + c * 64 : w - 16 - (cols - c) * 64;
-		for (let row = 0; row < 18; row++) {
-			const v = Math.floor(hash(c * 31 + row + Math.floor(f.at * 6)) * 65536);
-			ctx.fillStyle = alpha(C.mid, 0.25 + 0.35 * hash(c + row * 7));
-			ctx.fillText(v.toString(16).toUpperCase().padStart(4, "0"), x, 20 + ((row * 22 + f.at * 40) % (h * 0.7)));
+		const x = c < cols / 2 ? 18 + c * step : w - 18 - (cols - c) * step;
+		for (let row = 0; row < lines; row++) {
+			const v = Math.floor(hash(c * 31 + row + Math.floor(f.at * 5)) * 65536);
+			const y = (((row * size * 1.5 - f.at * 34) % (lines * size * 1.5)) + lines * size * 1.5) % (lines * size * 1.5);
+			ctx.fillStyle = alpha(C.mid, 0.16 + 0.3 * hash(c + row * 7));
+			ctx.fillText(v.toString(16).toUpperCase().padStart(4, "0"), x, y);
 		}
 	}
 	for (let i = 0; i < 16; i++) {
@@ -117,8 +121,6 @@ function transmission(ctx: CanvasRenderingContext2D, w: number, h: number, f: Fr
 		ctx.fillRect(w / 2 - 8 * 10 + i * 10, sy + sh + 34 - level * 24, 7, level * 24);
 	}
 }
-
-const MORSE = [1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0];
 
 function sos(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame): void {
 	stars(ctx, w, h, f.at, 0.002);
@@ -145,11 +147,10 @@ function sos(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame): voi
 		ctx.lineWidth = a > 0.8 ? 2 : 1.2;
 		ctx.beginPath();
 		for (let x = left; x <= right; x += 2) {
-			const u = (x - left) / (right - left), time = f.t - lag;
-			const symbol = MORSE[Math.floor((u * 6 + time * 2.6) * 1) % MORSE.length]!;
-			const dropout = Math.sin(u * 9 + time * 4) > 0.9 ? 0.15 : 1;
-			const noise = (hash(Math.floor(x * 1.3 + time * 400)) - 0.5) * (0.25 + 0.5 * Math.max(0, f.t - 4.5));
-			const y = mid - (symbol * dropout * Math.sin(u * 160 + time * 30) * 0.9 + noise) * amp;
+			const u = (x - left) / (right - left), time = f.t - lag - (1 - u) * 0.6;
+			const signal = beaconAt(time);
+			const noise = (hash(Math.floor(x * 1.3 + f.t * 400)) - 0.5) * (0.22 + 0.4 * Math.max(0, f.t - 3.5));
+			const y = mid - (signal * Math.sin(u * 180 + time * 40) * 0.92 + noise) * amp;
 			if (x === left) ctx.moveTo(x, y);
 			else ctx.lineTo(x, y);
 		}
@@ -173,8 +174,6 @@ function cut(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame): voi
 		ctx.fillRect(hash(i * 3 + f.t) * w, hash(i * 5 + f.t * 2) * h, 2, 2);
 	}
 }
-
-const REGION_LABELS = ["THE SURFACE", "THE UNDERWORKS", "THE BORE"];
 
 function moon(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame): void {
 	stars(ctx, w, h, f.at, 0.004);
@@ -243,42 +242,122 @@ function moon(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame): vo
 	ctx.arc(mx, my, mr, -Math.PI * 0.5, Math.PI * 0.5);
 	ctx.stroke();
 
-	const shown = Math.min(21, Math.floor(Math.max(0, f.t - 4.6) * 4));
-	const size = Math.max(11, Math.min(15, w / 64));
-	const site = (i: number) => {
-		const a = Math.PI * 0.62 + (i / 20) * Math.PI * 1.55, rr = mr * (0.84 - (i / 20) * 0.78);
-		return { x: mx + Math.cos(a) * rr, y: my + Math.sin(a) * rr * 0.92 };
-	};
-	for (let i = 0; i < 21; i++) {
-		const { x, y } = site(i);
-		const lit = i < shown, region = Math.floor(i / 7), colour = region === 2 ? C.hot : C.hi;
-		if (lit && i > 0) {
-			const prev = site(i - 1);
-			ctx.strokeStyle = alpha(colour, 0.45);
-			ctx.lineWidth = 1;
-			ctx.beginPath();
-			ctx.moveTo(prev.x, prev.y);
-			ctx.lineTo(x, y);
-			ctx.stroke();
+	if (f.t > 1.2) {
+		const tx = mx - mr * 0.42, ty = my - mr * 0.18, pulse = (f.t * 0.8) % 1, size = Math.max(11, Math.min(15, w / 64));
+		ctx.strokeStyle = alpha(C.hot, 1 - pulse);
+		ctx.lineWidth = 1.5;
+		ctx.beginPath();
+		ctx.arc(tx, ty, 6 + pulse * mr * 0.25, 0, 7);
+		ctx.stroke();
+		ctx.strokeStyle = C.hot;
+		ctx.shadowColor = C.hot;
+		ctx.shadowBlur = 10;
+		const r = mr * 0.09;
+		ctx.beginPath();
+		for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
+			ctx.moveTo(tx + dx * r, ty + dy * r * 0.4);
+			ctx.lineTo(tx + dx * r, ty + dy * r);
+			ctx.lineTo(tx + dx * r * 0.4, ty + dy * r);
 		}
-		ctx.fillStyle = lit ? colour : alpha(C.dim, 0.7);
+		ctx.stroke();
+		ctx.fillStyle = C.hot;
+		ctx.fillRect(tx - 2, ty - 2, 4, 4);
+		ctx.shadowBlur = 0;
+		ctx.strokeStyle = alpha(C.hot, 0.6);
+		ctx.beginPath();
+		ctx.moveTo(tx - r, ty);
+		ctx.lineTo(mx - mr - size * 0.6, ty);
+		ctx.stroke();
+		text(ctx, "LACUNA COMPLEX", mx - mr - size, ty - size * 0.7, C.hot, size, "right");
+		text(ctx, "NO CARRIER · 41 DAYS", mx - mr - size, ty + size * 0.8, C.mid, size * 0.85, "right", 3);
+	}
+}
+
+const LAYERS = [
+	{ name: "THE SURFACE", range: "SITES 1–7" },
+	{ name: "THE UNDERWORKS", range: "SITES 8–14" },
+	{ name: "THE BORE", range: "SITES 15–21" },
+];
+
+function section(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame): void {
+	const reveal = ease(f.t / 0.8);
+	const top = h * 0.14, under = h * 0.3, deep = h * 0.56, left = w * 0.24, right = w * 0.94;
+	stars(ctx, w, top, f.at, 0.002);
+	ctx.fillStyle = alpha(C.dim, 0.14 * reveal);
+	ctx.fillRect(0, top, w, h - top);
+	for (let i = 0; i < 260; i++) {
+		const x = hash(i + 500) * w, y = top + hash(i + 900) * (h - top);
+		ctx.fillStyle = alpha(C.mid, 0.12 * reveal);
+		ctx.fillRect(x, y, 6, 1);
+	}
+	ctx.strokeStyle = C.n;
+	ctx.shadowColor = C.n;
+	ctx.shadowBlur = 10;
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(0, top);
+	ctx.lineTo(w, top);
+	ctx.stroke();
+	ctx.shadowBlur = 0;
+	const shaftX = w * 0.78;
+	const sites: { x: number; y: number }[] = [];
+	for (let i = 0; i < 7; i++) sites.push({ x: left + ((shaftX - left) * i) / 6, y: top });
+	for (let i = 0; i < 7; i++) sites.push({ x: shaftX - ((shaftX - left) * i) / 6, y: under });
+	for (let i = 0; i < 7; i++) sites.push(i < 4 ? { x: shaftX, y: under + ((deep - under) * (i + 1)) / 4.6 } : { x: shaftX + (i - 3.4) * (right - shaftX) * 0.3, y: deep + h * 0.055 });
+	ctx.lineWidth = 1.5;
+	ctx.strokeStyle = alpha(C.mid, 0.7 * reveal);
+	ctx.beginPath();
+	ctx.moveTo(left - 10, under);
+	ctx.lineTo(shaftX + 10, under);
+	ctx.moveTo(left - 10, under + 10);
+	ctx.lineTo(shaftX + 10, under + 10);
+	ctx.stroke();
+	ctx.strokeStyle = alpha(C.hot, 0.8 * reveal);
+	ctx.beginPath();
+	ctx.moveTo(shaftX - 7, top);
+	ctx.lineTo(shaftX - 7, deep + h * 0.03);
+	ctx.moveTo(shaftX + 7, top);
+	ctx.lineTo(shaftX + 7, deep + h * 0.03);
+	ctx.stroke();
+	ctx.fillStyle = alpha(C.hot, 0.12 * reveal);
+	ctx.beginPath();
+	ctx.ellipse(shaftX + (right - shaftX) * 0.32, deep + h * 0.06, (right - shaftX) * 0.7, h * 0.05, 0, 0, 7);
+	ctx.fill();
+	ctx.strokeStyle = alpha(C.hot, 0.6 * reveal);
+	ctx.stroke();
+	for (const [u, r] of [[0.08, 14], [0.33, 10], [0.58, 16]] as const) {
+		ctx.strokeStyle = alpha(C.n, 0.8 * reveal);
+		ctx.beginPath();
+		ctx.arc(left + (shaftX - left) * u, top, r, Math.PI, 0);
+		ctx.stroke();
+	}
+	const shown = Math.min(21, Math.floor(Math.max(0, f.t - 0.6) * 7.5));
+	for (let i = 1; i < shown; i++) {
+		if (i === 7 || i === 14) continue;
+		ctx.strokeStyle = alpha(i >= 14 ? C.hot : C.hi, 0.35);
+		ctx.setLineDash([3, 4]);
+		ctx.beginPath();
+		ctx.moveTo(sites[i - 1]!.x, sites[i - 1]!.y);
+		ctx.lineTo(sites[i]!.x, sites[i]!.y);
+		ctx.stroke();
+		ctx.setLineDash([]);
+	}
+	sites.forEach((p, i) => {
+		const lit = i < shown, colour = i >= 14 ? C.hot : C.hi;
+		ctx.fillStyle = lit ? colour : alpha(C.dim, 0.8 * reveal);
 		ctx.shadowColor = colour;
 		ctx.shadowBlur = lit ? 10 : 0;
-		ctx.fillRect(x - 3, y - 3, 6, 6);
+		ctx.fillRect(p.x - 3.5, p.y - 3.5, 7, 7);
 		ctx.shadowBlur = 0;
-	}
-	REGION_LABELS.forEach((label, region) => {
-		if (shown <= region * 7) return;
-		const first = site(region * 7), colour = region === 2 ? C.hot : C.hi;
-		const lx = mx - mr - size, ly = my - mr * 0.55 + region * size * 2.2;
-		ctx.strokeStyle = alpha(colour, 0.5);
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		ctx.moveTo(lx + 4, ly);
-		ctx.lineTo(first.x, first.y);
-		ctx.stroke();
-		text(ctx, label, lx, ly, colour, size, "right");
 	});
+	const size = Math.max(11, Math.min(15, w / 64));
+	LAYERS.forEach((layer, i) => {
+		if (shown <= i * 7) return;
+		const y = [top, under, (under + deep) / 2 + h * 0.04][i]!, colour = i === 2 ? C.hot : C.hi;
+		text(ctx, layer.name, left - size * 2, y - size * 0.6, colour, size, "right");
+		text(ctx, layer.range, left - size * 2, y + size * 0.7, C.mid, size * 0.85, "right", 3);
+	});
+	text(ctx, "−2.1 KM", shaftX - (right - shaftX) * 0.5, deep + h * 0.06, C.hot, size * 0.85, "right", 4);
 }
 
 function descent(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame): void {
@@ -354,39 +433,28 @@ function descent(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame):
 		for (const s of [-1, 1]) ctx.fillRect(w / 2 + s * padW - 3, padY - 3, 6, 6);
 		ctx.shadowBlur = 0;
 	}
-	const fall = ease(f.t / land), hx = w / 2, hy = h * 0.08 + fall * (padY - 14 - h * 0.08), size = 1 + fall * 0.5;
-	if (!landed) {
-		const flame = (14 + hash(Math.floor(f.at * 24)) * 16) * size;
-		ctx.fillStyle = C.hot;
-		ctx.shadowColor = C.hot;
-		ctx.shadowBlur = 16;
+	const fall = ease(f.t / land), unit = (1 + fall * 0.7) * Math.max(1, Math.min(1.6, w / 800));
+	const legs = ease((fall - 0.5) / 0.35), footY = 9 + 13 * legs;
+	const hx = w / 2, hy = h * 0.06 + fall * (padY - h * 0.06) - footY * unit;
+	const near = ease((fall - 0.35) / 0.65);
+	ctx.fillStyle = alpha(C.tube, 0.55 * near);
+	ctx.beginPath();
+	ctx.ellipse(hx, padY, 34 * unit * (0.4 + near * 0.6), 6 * unit * (0.4 + near * 0.6), 0, 0, 7);
+	ctx.fill();
+	if (!landed && fall > 0.25) {
+		const cone = ctx.createLinearGradient(0, hy + 8 * unit, 0, padY);
+		cone.addColorStop(0, alpha(C.hi, 0.22));
+		cone.addColorStop(1, alpha(C.hi, 0));
+		ctx.fillStyle = cone;
 		ctx.beginPath();
-		ctx.moveTo(hx - 8 * size, hy);
-		ctx.lineTo(hx + 8 * size, hy);
-		ctx.lineTo(hx, hy + flame);
+		ctx.moveTo(hx - 6 * unit, hy + 8 * unit);
+		ctx.lineTo(hx + 6 * unit, hy + 8 * unit);
+		ctx.lineTo(hx + 44 * unit, padY);
+		ctx.lineTo(hx - 44 * unit, padY);
 		ctx.closePath();
 		ctx.fill();
-		ctx.shadowBlur = 0;
 	}
-	ctx.fillStyle = C.hi;
-	ctx.shadowColor = C.hi;
-	ctx.shadowBlur = 12;
-	ctx.beginPath();
-	ctx.moveTo(hx - 24 * size, hy);
-	ctx.lineTo(hx + 24 * size, hy);
-	ctx.lineTo(hx + 15 * size, hy - 18 * size);
-	ctx.lineTo(hx - 15 * size, hy - 18 * size);
-	ctx.closePath();
-	ctx.fill();
-	ctx.shadowBlur = 0;
-	ctx.strokeStyle = C.hi;
-	ctx.lineWidth = 2;
-	ctx.beginPath();
-	ctx.moveTo(hx - 18 * size, hy);
-	ctx.lineTo(hx - 26 * size, hy + 10 * size);
-	ctx.moveTo(hx + 18 * size, hy);
-	ctx.lineTo(hx + 26 * size, hy + 10 * size);
-	ctx.stroke();
+	lander(ctx, hx, hy, unit, legs, landed ? 0 : 1 - fall * 0.35, f.at);
 	const dustFrom = land - 0.9;
 	if (f.t > dustFrom) {
 		const age = f.t - dustFrom;
@@ -405,12 +473,90 @@ function descent(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame):
 	text(ctx, landed ? "CONTACT · ENGINES SAFE" : `V/S −${Math.round((1 - fall) * 38 + 2)} M/S`, 18, 22 + label * 1.6, landed ? C.n : C.mid, label, "left", 4);
 }
 
+/** The hopper: hull, cockpit, engine pods, drone bay and legs, outlined in phosphor; `thrust` 0 means engines off. */
+function lander(ctx: CanvasRenderingContext2D, x: number, y: number, u: number, legs: number, thrust: number, at: number): void {
+	const P = (dx: number, dy: number): [number, number] => [x + dx * u, y + dy * u];
+	const path = (points: [number, number][], close = true) => {
+		ctx.beginPath();
+		points.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)));
+		if (close) ctx.closePath();
+	};
+	if (thrust > 0) {
+		const flicker = 0.75 + hash(Math.floor(at * 30)) * 0.5;
+		for (const [dx, len, wide] of [[0, 30, 6], [-17, 14, 3], [17, 14, 3]] as const) {
+			const [fx, fy] = P(dx, 9), flame = ctx.createLinearGradient(0, fy, 0, fy + len * u * thrust * flicker);
+			flame.addColorStop(0, C.hi);
+			flame.addColorStop(0.35, C.hot);
+			flame.addColorStop(1, alpha(C.hot, 0));
+			ctx.fillStyle = flame;
+			ctx.beginPath();
+			ctx.moveTo(fx - wide * u, fy);
+			ctx.lineTo(fx + wide * u, fy);
+			ctx.lineTo(fx, fy + len * u * thrust * flicker);
+			ctx.closePath();
+			ctx.fill();
+		}
+	}
+	ctx.lineWidth = Math.max(1.2, 1.4 * u);
+	ctx.strokeStyle = C.hi;
+	for (const side of [-1, 1]) {
+		const hip = P(side * 11, 6), knee = P(side * (13 + 9 * legs), 6 + 8 * legs), foot = P(side * (14 + 12 * legs), 9 + 13 * legs);
+		path([hip, knee, foot], false);
+		ctx.stroke();
+		path([P(side * (10 + 12 * legs), 9 + 13 * legs), P(side * (18 + 12 * legs), 9 + 13 * legs)], false);
+		ctx.stroke();
+	}
+	const hull: [number, number][] = [P(-15, 9), P(15, 9), P(18, 2), P(12, -8), P(-12, -8), P(-18, 2)];
+	ctx.fillStyle = C.tube;
+	path(hull);
+	ctx.fill();
+	ctx.shadowColor = C.hi;
+	ctx.shadowBlur = 12;
+	ctx.stroke();
+	ctx.shadowBlur = 0;
+	for (const side of [-1, 1]) {
+		path([P(side * 18, -1), P(side * 23, -1), P(side * 23, 8), P(side * 18, 8)]);
+		ctx.fillStyle = C.tube;
+		ctx.fill();
+		ctx.stroke();
+		path([P(side * 19.5, 8), P(side * 21.5, 8), P(side * 22, 10), P(side * 19, 10)]);
+		ctx.stroke();
+	}
+	ctx.beginPath();
+	ctx.ellipse(...P(0, -8), 8 * u, 6 * u, 0, Math.PI, 0);
+	ctx.fillStyle = C.tube;
+	ctx.fill();
+	ctx.stroke();
+	ctx.fillStyle = alpha(C.hi, 0.55);
+	ctx.beginPath();
+	ctx.ellipse(...P(2, -9.5), 4.5 * u, 2.6 * u, 0, Math.PI, 0);
+	ctx.fill();
+	for (let i = 0; i < 3; i++) {
+		const [bx, by] = P(-9 + i * 7, 1);
+		ctx.fillStyle = alpha(C.n, 0.8);
+		ctx.fillRect(bx - 2 * u, by - 2 * u, 4 * u, 4 * u);
+	}
+	path([P(0, -14), P(0, -21)], false);
+	ctx.stroke();
+	const blink = Math.floor(at * 2.2) % 2;
+	ctx.shadowBlur = 10;
+	ctx.fillStyle = blink ? C.hot : alpha(C.hot, 0.25);
+	ctx.shadowColor = C.hot;
+	ctx.fillRect(...P(-0.8, -22.5), 2.4 * u, 2.4 * u);
+	ctx.fillStyle = blink ? alpha(C.hi, 0.3) : C.hi;
+	ctx.shadowColor = C.hi;
+	ctx.fillRect(...P(-24, 2), 2 * u, 2 * u);
+	ctx.fillRect(...P(22, 2), 2 * u, 2 * u);
+	ctx.shadowBlur = 0;
+}
+
 /** Draws one frame of the intro. Loaded only when the intro or the ending is shown. */
 export function drawIntro(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame): void {
 	if (f.scene === "transmission") transmission(ctx, w, h, f);
 	else if (f.scene === "sos") sos(ctx, w, h, f);
 	else if (f.scene === "cut") cut(ctx, w, h, f);
 	else if (f.scene === "moon") moon(ctx, w, h, f);
+	else if (f.scene === "section") section(ctx, w, h, f);
 	else descent(ctx, w, h, f);
 	for (const c of f.cards) card(ctx, w, h, c);
 }

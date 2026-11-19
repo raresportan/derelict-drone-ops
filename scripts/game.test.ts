@@ -350,7 +350,7 @@ test("the archive lists what was found and reads it back", async () => {
 	assert.ok(sink.saw(/Twenty if Okafor keeps sleepwalking/));
 });
 
-test("the intro types its lines slowly, cuts hard to SIGNAL LOST, and plays its sounds in order", async () => {
+test("the intro chimes, types slowly, cuts hard to SIGNAL LOST, shows the crust, and plays its sounds in order", async () => {
 	const { game, sink, saves } = setup();
 	saves.seen = false;
 	game.command("2");
@@ -360,11 +360,13 @@ test("the intro types its lines slowly, cuts hard to SIGNAL LOST, and plays its 
 	const lost = sink.lines.find((l) => /SIGNAL LOST/.test(l.text));
 	assert.equal(lost?.typed, false, "the cut is instant");
 	assert.equal(sink.lines.find((l) => /^CONTRACT 7731-K/.test(l.text))?.typed, "slow");
-	assert.deepEqual(sink.sounds.filter((s) => ["hum", "morse", "static"].includes(s)), ["hum", "morse", "morse", "static"]);
+	assert.deepEqual(sink.sounds.filter((s) => ["hum", "incoming", "sos", "static"].includes(s)), ["hum", "incoming", "incoming", "sos", "static"]);
 	const intro = game.intro!;
 	assert.equal(intro.scene, "cut");
 	run(game, 2);
 	assert.deepEqual(game.intro!.cards.map((c) => c.title), ["LACUNA"]);
-	run(game, 14);
+	run(game, 4);
+	assert.equal(game.intro!.scene, "section");
+	run(game, 10);
 	assert.ok(sink.sounds.includes("rumble") && sink.sounds.includes("boom"));
 });

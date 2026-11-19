@@ -2,7 +2,7 @@
 export type LogKind = "echo" | "note" | "ok" | "warn" | "alarm" | "drone" | "head" | "loot";
 
 /** A sound the console may play. */
-export type Sound = "key" | "ok" | "err" | "door" | "alarm" | "ping" | "boom" | "jump" | "hum" | "morse" | "static" | "rumble";
+export type Sound = "key" | "ok" | "err" | "door" | "alarm" | "ping" | "boom" | "jump" | "hum" | "incoming" | "sos" | "static" | "rumble";
 
 /** How a line reaches the log: at once, typed quickly, or typed slowly for the intro. */
 export type Typing = boolean | "slow";

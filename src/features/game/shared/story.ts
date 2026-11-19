@@ -38,7 +38,7 @@ export interface IntroText {
 	lines: readonly { at: number; text: string; kind: LogKind; typed: Typing }[];
 }
 
-export type IntroScene = "transmission" | "sos" | "cut" | "moon" | "descent";
+export type IntroScene = "transmission" | "sos" | "cut" | "moon" | "section" | "descent";
 
 export interface EndingText {
 	prompt: readonly string[];
