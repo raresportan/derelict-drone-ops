@@ -15,8 +15,8 @@ npm start
 
 ## Play
 
-- **Tutorial (1)**: a guided boarding on a small training hulk.
-- **Campaign (2)**: 21 sites across three regions: the Surface, the Underworks and the Bore. A first campaign opens with Cyberdime's transmission (Enter skips it; **Intro (5)** replays it). Every hop between sites burns one fuel cell. Bring scrap and fuel cells back into the dock, then `undock`. Between hops, the drydock lets you `repair`, `rebuild`, `upgrade <drone> armour|thrust|mk2`, `buy fuel`, and `hop`. Each site is bigger and more dangerous than the last. The run ends when you have no fuel and no drones left, and no scrap to buy more.
+- **Terminal Orientation (1)**: the SCT-7 operator manual, a guided boarding on a simulated hulk.
+- **Campaign (2)**: 21 sites across three regions: the Surface, the Underworks and the Bore. A first campaign opens with Cyberdime's transmission (Enter skips it; **Mission Data (5)** replays it). Every hop between sites burns one fuel cell. Bring scrap and fuel cells back into the dock, then `undock`. Between hops, the drydock lets you `repair`, `rebuild`, `upgrade <drone> armour|thrust|mk2`, `buy fuel`, and `hop`. Each site is bigger and more dangerous than the last. The run ends when you have no fuel and no drones left, and no scrap to buy more.
 - **The story**: powered terminals hold the crew's logs. `read` one with a drone beside it: 15 story logs turn up in order as you go deeper, and 30 crew logs are shuffled across the sites. Every log you read goes into the **Archive (4)**, which outlasts losing a run. Lifting off from site 21, the Bore floor, ends the story with a choice; after that the run goes on into the deep sectors.
 - Progress saves automatically at the drydock. **Continue (3)** resumes from there. In the app, saves go to a file in your user data folder; in the browser, to local storage.
 

@@ -14,7 +14,7 @@ const mapSize = (session: Session) =>
 
 export async function boots(session: Session): Promise<void> {
 	await session.launch();
-	await session.check("The title menu offers the tutorial and a new campaign", async () => /1\s+TUTORIAL/.test(await session.log()) && /2\s+NEW CAMPAIGN/.test(await session.log()));
+	await session.check("The title menu offers terminal orientation and a new campaign", async () => /1\s+TERMINAL ORIENTATION/.test(await session.log()) && /2\s+NEW CAMPAIGN/.test(await session.log()));
 	await session.check(
 		"The map fills its window, measured after the warm-up",
 		async () => {
@@ -37,19 +37,19 @@ const progressShown = (session: Session, card: number) =>
 export async function tutorial(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("1");
-	await session.check("The tutorial starts at its first step", async () => (await session.text("#tut")).startsWith("TUTORIAL 1/8"));
+	await session.check("The tutorial starts at its first step", async () => (await session.text("#tut")).startsWith("ORIENTATION 1/8"));
 	for (let step = 1; step < 8; step++) {
 		const hint = await session.text("#tut");
 		await session.type(askedCommand(hint));
 		if (askedCommand(hint).startsWith("gather")) await session.check("A gathering drone's cam shows the job's progress bar filling", () => progressShown(session, 1), () => session.page.locator("#cards em").allInnerTexts().then((s) => s.join(", ")));
-		await session.check(`Doing step ${step} moves on to step ${step + 1}`, async () => (await session.text("#tut")).startsWith(`TUTORIAL ${step + 1}/8`), () => session.text("#tut"));
+		await session.check(`Doing step ${step} moves on to step ${step + 1}`, async () => (await session.text("#tut")).startsWith(`ORIENTATION ${step + 1}/8`), () => session.text("#tut"));
 	}
 	await session.check("Reading the training terminal prints Cyberdime's briefing", async () => /H-00 · CONTRACTOR BRIEFING/.test(await session.log()), () => session.log());
 	await session.shot("tutorial-last-step");
 	await session.type("nav all dock");
 	await session.check("All three drones come home", async () => (await session.page.locator("#cards em", { hasText: "DOCKED" }).count()) === 3);
 	await session.type("undock");
-	await session.check("Undocking ends the tutorial and returns to the menu, marked done", async () => /TUTORIAL\s+a guided first boarding \(completed\)/.test(await session.log()), () => session.log());
+	await session.check("Undocking ends orientation and returns to the menu, marked done", async () => /TERMINAL ORIENTATION\s+the SCT-7 operator manual, on a simulated hulk \(completed\)/.test(await session.log()), () => session.log());
 	await session.type("4");
 	await session.check("The archive keeps the briefing the tutorial's terminal gave up", async () => /ARCHIVE · story 0\/15 · crew 0\/30 · briefing/.test(await session.log()) && /H-00 {2}Contractor briefing/.test(await session.log()), () => session.log());
 }
@@ -69,11 +69,11 @@ const redOnMap = (session: Session) =>
 export async function fight(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("1");
-	await session.until(async () => (await session.text("#tut")).startsWith("TUTORIAL 1/8"), "the tutorial's first step");
+	await session.until(async () => (await session.text("#tut")).startsWith("ORIENTATION 1/8"), "the tutorial's first step");
 	for (let step = 1; step < 8; step++) {
 		const hint = await session.text("#tut");
 		await session.type(askedCommand(hint));
-		await session.until(async () => (await session.text("#tut")).startsWith(`TUTORIAL ${step + 1}/8`), `tutorial step ${step + 1}`);
+		await session.until(async () => (await session.text("#tut")).startsWith(`ORIENTATION ${step + 1}/8`), `tutorial step ${step + 1}`);
 	}
 	const lair = /sleeps in (r\d+)/.exec(await session.text("#tut"))?.[1];
 	await session.check("The training hulk names the lifeform's lair", lair !== undefined, await session.text("#tut"));

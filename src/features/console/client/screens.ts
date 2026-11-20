@@ -516,7 +516,7 @@ export class Screens {
 		const f = Math.max(12, Math.min(17, W / 55));
 		let y = subY + f * 3;
 		const save = game.saves.campaign();
-		const options: [string, string][] = [["1", "TUTORIAL"], ["2", "NEW CAMPAIGN"], ...(save === null ? [] : [["3", `CONTINUE · SITE ${save.jump}`] as [string, string]]), ["4", `ARCHIVE · ${game.saves.archive().length} LOGS`], ["5", "INTRO"]];
+		const options: [string, string][] = [["1", "TERMINAL ORIENTATION"], ["2", "NEW CAMPAIGN"], ...(save === null ? [] : [["3", `CONTINUE · SITE ${save.jump}`] as [string, string]]), ["4", `ARCHIVE · ${game.saves.archive().length} LOGS`], ["5", "MISSION DATA"]];
 		for (const [key, label] of options) {
 			this.#ctx.font = `${f}px ${FONT}`;
 			const left = W / 2 - this.#ctx.measureText(` ${key}  ${label}`).width / 2;

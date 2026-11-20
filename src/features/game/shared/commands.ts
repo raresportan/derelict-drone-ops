@@ -319,7 +319,7 @@ export function missionCommand(h: MissionHost, cmd: string, args: string[], word
 		case "menu":
 			if (!m.menuArm) {
 				m.menuArm = true;
-				sink.log(m.tutorial !== null ? "Leave the tutorial? Type MENU again." : "Abandon this boarding? Progress since the drydock is lost. Type MENU again.", "warn");
+				sink.log(m.tutorial !== null ? "Leave orientation? Type MENU again." : "Abandon this boarding? Progress since the drydock is lost. Type MENU again.", "warn");
 				return;
 			}
 			h.leave();

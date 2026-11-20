@@ -15,21 +15,21 @@ import { generate } from "./world.ts";
 export type FKey = readonly [label: string, command: string] | null;
 
 const FKEYS: Record<Mode, readonly FKey[]> = {
-	menu: [["TUTORIAL", "1"], ["CAMPAIGN", "2"], ["CONTINUE", "3"], ["ARCHIVE", "4"], ["INTRO", "5"], null, null, ["SND", "sound"], null],
+	menu: [["ORIENTATION", "1"], ["CAMPAIGN", "2"], ["CONTINUE", "3"], ["ARCHIVE", "4"], ["MISSION DATA", "5"], null, null, ["SND", "sound"], null],
 	intro: [["SKIP", "skip"], null, null, null, null, null, null, ["SND", "sound"], null],
 	mission: [["HELP", "help"], ["STATUS", "status"], ["MOTION", "motion"], ["LURE", "lure 3"], ["STOP", "stop all"], ["RECALL", "nav all dock"], ["LABELS", "labels"], ["SND", "sound"], ["MENU", "menu"]],
 	drydock: [["HELP", "help"], ["STATUS", "status"], ["REPAIR", "repair all"], ["FUEL", "buy fuel"], ["ARCHIVE", "archive"], null, ["HOP", "hop"], ["SND", "sound"], ["MENU", "menu"]],
 	ending: [["DELIVER", "deliver"], ["BROADCAST", "broadcast"], null, null, ["ARCHIVE", "archive"], null, ["HOP ON", "hop"], ["SND", "sound"], ["MENU", "menu"]],
-	over: [["TUTORIAL", "tutorial"], ["CAMPAIGN", "campaign"], null, ["ARCHIVE", "archive"], null, null, null, ["SND", "sound"], ["MENU", "menu"]],
+	over: [["ORIENTATION", "orientation"], ["CAMPAIGN", "campaign"], null, ["ARCHIVE", "archive"], null, null, null, ["SND", "sound"], ["MENU", "menu"]],
 };
 
 const WORDS: Record<Mode, readonly string[]> = {
 	mission: ["nav", "open", "close", "gather", "read", "motion", "lure", "purge", "stop", "status", "undock", "labels", "sound", "clear", "help", "menu"],
 	drydock: ["repair", "rebuild", "upgrade", "buy", "hop", "archive", "status", "sound", "clear", "help", "menu", "armour", "thrust", "mk2", "fuel", "all"],
-	menu: ["tutorial", "campaign", "continue", "archive", "intro", "sound", "clear"],
+	menu: ["orientation", "campaign", "continue", "archive", "data", "sound", "clear"],
 	intro: ["skip", "sound"],
 	ending: ["deliver", "broadcast", "hop", "archive", "menu", "sound", "clear"],
-	over: ["tutorial", "campaign", "archive", "menu", "sound", "clear"],
+	over: ["orientation", "campaign", "archive", "menu", "sound", "clear"],
 };
 
 /** Seconds between the hopper lifting off and what comes next, so the player sees how the boarding ended. */
@@ -152,11 +152,11 @@ export class Game {
 		const lines: [string, LogKind][] = [
 			["SCT-7 SALVAGE CONTROL TERMINAL · SALVAGE-OS v2.1", "head"],
 			["Contract 7731-K: the Lacuna complex, an ice moon gone silent. Three drones and a hopper.", "note"],
-			[`  1  TUTORIAL        a guided first boarding${tutorialDone ? " (completed)" : " — recommended"}`, tutorialDone ? "ok" : "head"],
-			["  2  NEW CAMPAIGN    21 sites across the Surface, the Underworks and the Bore", "ok"],
+			[`  1  TERMINAL ORIENTATION  the SCT-7 operator manual, on a simulated hulk${tutorialDone ? " (completed)" : " — recommended"}`, tutorialDone ? "ok" : "head"],
+			["  2  NEW CAMPAIGN          21 sites across the Surface, the Underworks and the Bore", "ok"],
 		];
-		if (save !== null) lines.push([`  3  CONTINUE        site ${save.jump} · ${save.scrap} scrap · ${save.fuel} fuel · ${save.drones.filter((d) => d.alive).length}/3 drones`, "ok"]);
-		lines.push([`  4  ARCHIVE         ${logs} log${logs === 1 ? "" : "s"} recovered`, "ok"], ["  5  INTRO           replay the transmission", "ok"]);
+		if (save !== null) lines.push([`  3  CONTINUE              site ${save.jump} · ${save.scrap} scrap · ${save.fuel} fuel · ${save.drones.filter((d) => d.alive).length}/3 drones`, "ok"]);
+		lines.push([`  4  ARCHIVE               ${logs} log${logs === 1 ? "" : "s"} recovered`, "ok"], ["  5  MISSION DATA          contract 7731-K transmission, replayed", "ok"]);
 		if (best !== null) lines.push([`Best run: site ${best.jump} reached · ${best.scrap} scrap salvaged`, "note"]);
 		lines.push(["Type a number (or its name) and press Enter.", "note"]);
 		for (const [text, kind] of lines) this.sink.log(text, kind, true);
@@ -241,15 +241,15 @@ export class Game {
 	}
 
 	#menuCommand(cmd: string): void {
-		if (cmd === "1" || cmd === "tutorial") this.#startTutorial();
+		if (cmd === "1" || cmd === "orientation" || cmd === "manual" || cmd === "tutorial") this.#startTutorial();
 		else if (cmd === "2" || cmd === "campaign" || cmd === "new") {
 			if (this.saves.introSeen()) this.#newCampaign();
 			else this.#startIntro(() => this.#newCampaign());
 		} else if ((cmd === "3" || cmd === "continue") && this.mode === "menu") this.#continue();
 		else if (cmd === "4") this.#showArchive(undefined);
-		else if (cmd === "5" || cmd === "intro") this.#startIntro(() => this.showMenu());
+		else if (cmd === "5" || cmd === "data" || cmd === "mission" || cmd === "briefing" || cmd === "intro") this.#startIntro(() => this.showMenu());
 		else if (cmd === "menu") this.showMenu();
-		else if (cmd === "help") this.sink.log("Type 1 tutorial, 2 new campaign, 3 continue, 4 archive or 5 intro.", "note");
+		else if (cmd === "help") this.sink.log("Type 1 orientation, 2 new campaign, 3 continue, 4 archive or 5 mission data.", "note");
 		else {
 			this.sink.log(`Unknown option "${cmd}".`, "warn");
 			this.sink.sound("err");
@@ -439,7 +439,7 @@ export class Game {
 		this.sink.log(`Recovered ${m.bank.scrap} scrap, ${m.bank.fuel} fuel · ${surveyed}/${m.rooms.length} rooms surveyed`, "head");
 		if (m.tutorial !== null) {
 			this.saves.finishTutorial();
-			this.sink.log(kind === "undock" ? "Tutorial complete. Lacuna is bigger, darker and less forgiving." : "Training drones lost. That is the lesson: close doors behind you.", "loot");
+			this.sink.log(kind === "undock" ? "Orientation complete. Lacuna is bigger, darker and less forgiving." : "Training drones lost. That is the lesson: close doors behind you.", "loot");
 			this.#after(CAST_OFF.toMenu, () => this.showMenu());
 			return;
 		}
@@ -526,6 +526,6 @@ export class Game {
 		this.sink.sound("boom");
 		this.sink.log(` CAMPAIGN OVER — ${reason} `, "alarm", true);
 		this.sink.log(`Sites reached: ${this.over.jump} · scrap salvaged: ${this.over.scrap} · rooms surveyed: ${this.over.rooms} · lifeforms killed: ${this.over.kills}`, "head", true);
-		this.sink.log("The logs you read stay in the ARCHIVE. Type CAMPAIGN to go back, TUTORIAL, or MENU.", "note", true);
+		this.sink.log("The logs you read stay in the ARCHIVE. Type CAMPAIGN to go back, ORIENTATION, or MENU.", "note", true);
 	}
 }

@@ -2,17 +2,17 @@
 
 Everything the game does, how a player reaches it, and what verifies it.
 
-- **Title menu.** The app opens on the LACUNA title screen, offering the tutorial, a new campaign, the archive and the intro, and a continue option once there's a save.
-  - ✅ boots › "The title menu offers the tutorial and a new campaign"
+- **Title menu.** The app opens on the LACUNA title screen, offering terminal orientation, a new campaign, the archive and the mission data, and a continue option once there's a save.
+  - ✅ boots › "The title menu offers terminal orientation and a new campaign"
   - ✅ campaign › "After a restart the menu offers to continue from site 1"
 - **A screen that fits.** The schematic fills its window once the tube has warmed up, and every control can be clicked where it's drawn.
   - ✅ boots › "The map fills its window, measured after the warm-up"
   - ✅ boots › "Every control can be clicked where it's drawn"
-- **Tutorial.** Type 1; a highlighted line gives one order at a time, and each step moves on once it's done. Undocking ends it and marks it done on the menu.
+- **Terminal orientation.** Type 1; the SCT-7 operator manual on a simulated hulk, where a highlighted line gives one order at a time, and each step moves on once it's done. Undocking ends it and marks it done on the menu.
   - ✅ tutorial › "The tutorial starts at its first step"
   - ✅ tutorial › "Doing step ${step} moves on to step ${step + 1}"
   - ✅ tutorial › "All three drones come home"
-  - ✅ tutorial › "Undocking ends the tutorial and returns to the menu, marked done"
+  - ✅ tutorial › "Undocking ends orientation and returns to the menu, marked done"
 - **The intro.** A first campaign opens with Cyberdime's transmission, the crew's SOS on a scope, a hard cut to SIGNAL LOST, an orbital pass over Lacuna and the hopper's landing: title cards on the screen, the log typed slowly, and sound cues when sound is on. Enter skips it, and 5 on the menu replays it.
   - ❌ the cards, scenes and sound are checked by a unit test of the timeline (game.test.ts) and by eye on journey screenshots; no journey reads the canvas or hears audio.
   - ✅ campaign › "A first campaign opens with Cyberdime's transmission"

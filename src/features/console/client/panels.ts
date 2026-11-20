@@ -188,7 +188,7 @@ export class Panels {
 		el(doc, "hScrap").textContent = String(scrap);
 		el(doc, "hFuel").textContent = String(fuel);
 		el(doc, "hBlocks").textContent = bar(Math.min(fuel, 6) / 6, 6);
-		el(doc, "hJump").textContent = m?.tutorial ? "TRAINING" : inCampaign ? `${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}` : "—";
+		el(doc, "hJump").textContent = m?.tutorial ? "SIM" : inCampaign ? `${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}` : "—";
 		el(doc, "hDr").textContent = `${this.#drones(game).filter((d) => d.alive).length}/3`;
 		el(doc, "hTime").textContent = m === null ? "--:--" : `${String(Math.floor(m.t / 60)).padStart(2, "0")}:${String(Math.floor(m.t % 60)).padStart(2, "0")}`;
 		el(doc, "hShip").textContent = m !== null ? `SITE: ${m.ship}` : game.mode === "drydock" ? "DRYDOCK · IN TRANSIT" : game.mode === "intro" ? "INCOMING TRANSMISSION" : "LACUNA ORBIT";
@@ -197,8 +197,8 @@ export class Panels {
 
 		const big = el(doc, "mBig"), objective = el(doc, "mObj"), cargo = el(doc, "mCargo"), best = el(doc, "mBest");
 		if (m?.tutorial) {
-			big.textContent = "TRAINING";
-			objective.textContent = "Follow the highlighted tutorial line. Nothing here is lost for real.";
+			big.textContent = "ORIENTATION";
+			objective.textContent = "Follow the highlighted orientation step. Hazards are simulated; nothing here is lost.";
 		} else if (m !== null && camp !== null) {
 			big.textContent = `SITE ${camp.jump}`;
 			objective.textContent = `${regionOf(m.site).name}. Bring scrap and fuel into the dock, READ terminals, then UNDOCK. Fuel: ${camp.fuel}.`;
@@ -216,7 +216,7 @@ export class Panels {
 			objective.textContent = "Type CAMPAIGN to start a new run.";
 		} else {
 			big.textContent = "STANDBY";
-			objective.textContent = "Choose 1 TUTORIAL, 2 NEW CAMPAIGN or 3 CONTINUE.";
+			objective.textContent = "Choose 1 ORIENTATION, 2 NEW CAMPAIGN or 3 CONTINUE.";
 		}
 		cargo.textContent = m !== null ? `Boarding: +${m.bank.scrap} scrap, +${m.bank.fuel} fuel · aboard drones ${m.drones.reduce((s, d) => s + d.cargo, 0)}` : inCampaign ? `Totals: ${camp.stats.scrap} scrap salvaged · ${camp.stats.kills} kills` : "";
 		const record = game.saves.best();
@@ -224,7 +224,7 @@ export class Panels {
 
 		const tutorial = el(doc, "tut"), steps = m?.tutorial;
 		tutorial.hidden = steps === undefined || steps === null || m?.end !== null;
-		if (steps) tutorial.textContent = `TUTORIAL ${steps.i + 1}/${steps.steps.length} ▸ ${steps.steps[steps.i]!.text}`;
+		if (steps) tutorial.textContent = `ORIENTATION ${steps.i + 1}/${steps.steps.length} ▸ ${steps.steps[steps.i]!.text}`;
 
 		const alert = el(doc, "hAlert"), seen = m?.creatures.find((c) => c.alive && c.vis);
 		const [text, cls] =
