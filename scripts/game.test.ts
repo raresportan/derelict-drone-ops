@@ -338,7 +338,7 @@ test("site 1 holds the first story log, and reading it archives it", async () =>
 	run(game, READ_SECONDS + 0.2);
 	assert.deepEqual(saves.logs.filter((id) => id.startsWith("S")), ["S01"]);
 	assert.ok(sink.saw(/Warm water at 2\.1 km/));
-	assert.ok(sink.saw(/STORY LOG 1\/15 ARCHIVED/));
+	assert.ok(sink.saw(/ARCHIVE ENTRY 1 RECOVERED/));
 });
 
 test("story logs come in order, only as deep as the site allows, and never twice", async () => {
@@ -401,8 +401,8 @@ test("the archive lists what was found and reads it back", async () => {
 	saves.logs = ["S01", "C-U03"];
 	game.command("4");
 	await settle(game);
-	assert.ok(sink.saw(/ARCHIVE · story 1\/15 · crew 1\/30/));
-	assert.ok(sink.saw(/S02 {2}░+ not yet recovered/));
+	assert.ok(sink.saw(/ARCHIVE · entries 1 · crew 1$/));
+	assert.ok(sink.saw(/S01 {2}/) && !sink.saw(/S02 {2}/) && !sink.saw(/not yet recovered|\/15|\/30/), "only what was recovered is listed, with no totals");
 	game.command("archive c-u03");
 	await settle(game);
 	assert.ok(sink.saw(/Twenty if Okafor keeps sleepwalking/));

@@ -51,7 +51,7 @@ export async function tutorial(session: Session): Promise<void> {
 	await session.type("undock");
 	await session.check("Undocking ends orientation and returns to the menu, marked done", async () => /TERMINAL ORIENTATION\s+the SCT-7 operator manual, on a simulated hulk \(completed\)/.test(await session.log()), () => session.log());
 	await session.type("4");
-	await session.check("The archive keeps the briefing the tutorial's terminal gave up", async () => /ARCHIVE · story 0\/15 · crew 0\/30 · briefing/.test(await session.log()) && /H-00 {2}Contractor briefing/.test(await session.log()), () => session.log());
+	await session.check("The archive keeps the briefing the tutorial's terminal gave up", async () => /ARCHIVE · entries 0 · crew 0 · briefing/.test(await session.log()) && /H-00 {2}Contractor briefing/.test(await session.log()), () => session.log());
 }
 
 const card = (session: Session, id: number) => session.page.locator("#cards .card").nth(id - 1);

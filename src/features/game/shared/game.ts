@@ -4,8 +4,8 @@ import type { Rng } from "./rng.ts";
 import { baseDrones, difficulty, PRICE, START_FUEL, specOf, TUTORIAL_DIFFICULTY } from "./rules.ts";
 import { dockDrones, tickMission } from "./sim.ts";
 import {
-	BRIEFING, CREW_TOTAL, type EndingText, FINAL_LOG, FINAL_SITE, type IntroScene, type IntroText, loadEnding, loadIntro, loadRegion, type Log, type RegionId, type RegionText,
-	REGIONS, regionOf, siteName, STORY_TOTAL,
+	BRIEFING, type EndingText, FINAL_LOG, FINAL_SITE, type IntroScene, type IntroText, loadEnding, loadIntro, loadRegion, type Log, type RegionId, type RegionText,
+	REGIONS, regionOf, siteName,
 } from "./story.ts";
 import { buildTutorial } from "./tutorial.ts";
 import type { Campaign, Difficulty, Drone, DroneSpec, LogKind, Mission, Mode, Over, SaveStore, Ship, Sink, Tutorial } from "./types.ts";
@@ -302,13 +302,14 @@ export class Game {
 					return;
 				}
 				const all = [...this.#regions.values()];
-				const story = all.flatMap((t) => t.story).sort((a, b) => a.id.localeCompare(b.id));
+				const story = all.flatMap((t) => t.story).filter((l) => read.has(l.id)).sort((a, b) => a.id.localeCompare(b.id));
 				const crew = all.flatMap((t) => t.crew).filter((l) => read.has(l.id));
-				this.sink.log(`ARCHIVE · story ${story.filter((l) => read.has(l.id)).length}/${STORY_TOTAL} · crew ${crew.length}/${CREW_TOTAL}${read.has(BRIEFING.id) ? " · briefing" : ""}`, "head");
-				for (const l of story) this.sink.log(read.has(l.id) ? `  ${l.id}  ${l.title} — ${l.author}` : `  ${l.id}  ░░░░░░░░░░ not yet recovered`, read.has(l.id) ? "ok" : "note");
+				this.sink.log(`ARCHIVE · entries ${story.length} · crew ${crew.length}${read.has(BRIEFING.id) ? " · briefing" : ""}`, "head");
+				for (const l of story) this.sink.log(`  ${l.id}  ${l.title} — ${l.author}`, "ok");
 				for (const l of crew) this.sink.log(`  ${l.id}  ${l.title} — ${l.author}`, "drone");
 				if (read.has(BRIEFING.id)) this.sink.log(`  ${BRIEFING.id}  ${BRIEFING.title} — ${BRIEFING.author}`, "drone");
-				this.sink.log("Type ARCHIVE <id> to read one, e.g. archive S01.", "note");
+				const first = story[0] ?? crew[0] ?? (read.has(BRIEFING.id) ? BRIEFING : null);
+				this.sink.log(first === null ? "Nothing recovered yet. Drones READ powered terminals to fill the archive." : `Type ARCHIVE <id> to read one, e.g. archive ${first.id}.`, "note");
 				if (this.campaign !== null && this.mode !== "menu") this.#keepNear(this.campaign.jump);
 			},
 		);
@@ -333,7 +334,7 @@ export class Game {
 		this.#printLog(log, true);
 		if (terminal.story) {
 			const count = this.saves.archive().filter((id) => id.startsWith("S")).length;
-			this.sink.log(known ? "Already in the archive." : ` STORY LOG ${count}/${STORY_TOTAL} ARCHIVED `, known ? "note" : "alarm", true);
+			this.sink.log(known ? "Already in the archive." : ` ARCHIVE ENTRY ${count} RECOVERED `, known ? "note" : "alarm", true);
 		}
 		this.sink.sound("ping");
 	}
