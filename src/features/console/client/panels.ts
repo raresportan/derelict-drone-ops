@@ -55,7 +55,7 @@ export class Panels {
 
 	#mode(game: Game): void {
 		const doc = this.#doc, m = game.mission;
-		const titles = { drydock: "[ DRYDOCK ]", mission: "[ SCHEMATIC ]", intro: "[ TRANSMISSION ]", ending: "[ HALVARD PRIORITY ]", menu: "[ SALVAGE-OS ]", over: "[ SALVAGE-OS ]" } as const;
+		const titles = { drydock: "[ DRYDOCK ]", mission: "[ SCHEMATIC ]", intro: "[ TRANSMISSION ]", ending: "[ CYBERDIME PRIORITY ]", menu: "[ SALVAGE-OS ]", over: "[ SALVAGE-OS ]" } as const;
 		el(doc, "mapTitle").textContent = titles[game.mode];
 		el(doc, "mapSub").textContent = m !== null ? (m.tutorial !== null ? m.ship : `${m.ship} · ${regionOf(m.site).name}`) : game.mode === "drydock" ? `AFTER SITE ${game.campaign?.jump ?? 0}` : game.mode === "intro" ? "CONTRACT 7731-K" : "LACUNA";
 		el(doc, "maphint").style.visibility = game.mode === "mission" ? "visible" : "hidden";
@@ -206,7 +206,7 @@ export class Panels {
 			objective.textContent = "Press Enter to skip.";
 		} else if (game.mode === "ending") {
 			big.textContent = "THE BORE ✓";
-			objective.textContent = "DELIVER the canisters to Halvard, or BROADCAST the crew's logs.";
+			objective.textContent = "DELIVER the canisters to Cyberdime, or BROADCAST the crew's logs.";
 		} else if (game.mode === "over") {
 			big.textContent = "GAME OVER";
 			objective.textContent = "Type CAMPAIGN to start a new run.";
@@ -225,7 +225,7 @@ export class Panels {
 		const alert = el(doc, "hAlert"), seen = m?.creatures.find((c) => c.alive && c.vis);
 		const [text, cls] =
 			m === null
-				? [game.mode === "drydock" ? "IN TRANSIT · DRYDOCK" : game.mode === "over" ? " CAMPAIGN OVER " : game.mode === "intro" ? " INCOMING · PRIORITY " : game.mode === "ending" ? " HALVARD ON THE LINE " : "AWAITING ORDERS", game.mode === "over" || game.mode === "intro" || game.mode === "ending" ? "a-H" : "a-m"]
+				? [game.mode === "drydock" ? "IN TRANSIT · DRYDOCK" : game.mode === "over" ? " CAMPAIGN OVER " : game.mode === "intro" ? " INCOMING · PRIORITY " : game.mode === "ending" ? " CYBERDIME ON THE LINE " : "AWAITING ORDERS", game.mode === "over" || game.mode === "intro" || game.mode === "ending" ? "a-H" : "a-m"]
 				: m.end !== null
 					? [" CASTING OFF ", "a-i"]
 					: seen !== undefined

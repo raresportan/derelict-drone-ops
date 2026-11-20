@@ -61,7 +61,7 @@ function card(ctx: CanvasRenderingContext2D, w: number, h: number, c: Frame["car
 	ctx.globalAlpha = 1;
 }
 
-function halvardMark(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, at: number): void {
+function companyMark(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, at: number): void {
 	ctx.lineWidth = 2;
 	ctx.strokeStyle = C.n;
 	ctx.shadowColor = C.n;
@@ -76,13 +76,16 @@ function halvardMark(ctx: CanvasRenderingContext2D, x: number, y: number, r: num
 	ctx.stroke();
 	ctx.lineWidth = r * 0.16;
 	ctx.beginPath();
-	ctx.moveTo(x - r * 0.38, y - r * 0.45);
-	ctx.lineTo(x - r * 0.38, y + r * 0.45);
-	ctx.moveTo(x + r * 0.38, y - r * 0.45);
-	ctx.lineTo(x + r * 0.38, y + r * 0.45);
-	ctx.moveTo(x - r * 0.38, y);
-	ctx.lineTo(x + r * 0.38, y);
+	ctx.arc(x, y, r * 0.48, Math.PI * 0.28, Math.PI * 1.72);
 	ctx.stroke();
+	ctx.fillStyle = C.n;
+	ctx.beginPath();
+	ctx.moveTo(x + r * 0.08, y - r * 0.2);
+	ctx.lineTo(x + r * 0.26, y);
+	ctx.lineTo(x + r * 0.08, y + r * 0.2);
+	ctx.lineTo(x - r * 0.1, y);
+	ctx.closePath();
+	ctx.fill();
 	ctx.shadowBlur = 0;
 	const scan = ((at * 0.7) % 1) * r * 2 - r;
 	ctx.fillStyle = alpha(C.hi, 0.12);
@@ -99,8 +102,8 @@ function transmission(ctx: CanvasRenderingContext2D, w: number, h: number, f: Fr
 	if (on < 1) return;
 	ctx.fillStyle = alpha(C.n, 0.04 + 0.02 * Math.sin(f.at * 30));
 	ctx.fillRect(sx, sy, sw, sh);
-	halvardMark(ctx, w / 2, sy + sh * 0.42, sh * 0.26, f.at);
-	text(ctx, "HALVARD", w / 2, sy + sh * 0.84, C.hi, Math.max(12, sh * 0.09));
+	companyMark(ctx, w / 2, sy + sh * 0.42, sh * 0.26, f.at);
+	text(ctx, "CYBERDIME", w / 2, sy + sh * 0.84, C.hi, Math.max(12, sh * 0.09));
 	const size = Math.max(15, Math.min(24, w / 42)), step = size * 4, lines = Math.ceil(h / (size * 1.5)) + 1;
 	const cols = Math.max(2, Math.floor((sx - 24) / step)) * 2;
 	ctx.font = `${size}px ${FONT}`;
@@ -578,7 +581,7 @@ function lander(ctx: CanvasRenderingContext2D, x: number, y: number, u: number, 
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
 		ctx.fillStyle = alpha(C.n, 0.75);
-		ctx.fillText("HMT·OTAGO", ...P(-12, 6));
+		ctx.fillText("CMC·OTAGO", ...P(-12, 6));
 	}
 	const blink = Math.floor(at * 2.2) % 2, strobe = Math.floor(at * 6) % 5 === 0;
 	ctx.shadowBlur = 12;

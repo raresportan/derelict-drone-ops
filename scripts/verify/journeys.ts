@@ -36,7 +36,7 @@ export async function tutorial(session: Session): Promise<void> {
 		await session.type(askedCommand(hint));
 		await session.check(`Doing step ${step} moves on to step ${step + 1}`, async () => (await session.text("#tut")).startsWith(`TUTORIAL ${step + 1}/8`), () => session.text("#tut"));
 	}
-	await session.check("Reading the training terminal prints Halvard's briefing", async () => /H-00 · CONTRACTOR BRIEFING/.test(await session.log()), () => session.log());
+	await session.check("Reading the training terminal prints Cyberdime's briefing", async () => /H-00 · CONTRACTOR BRIEFING/.test(await session.log()), () => session.log());
 	await session.shot("tutorial-last-step");
 	await session.type("nav all dock");
 	await session.check("All three drones come home", async () => (await session.page.locator("#cards em", { hasText: "DOCKED" }).count()) === 3);
@@ -98,7 +98,7 @@ export async function fight(session: Session): Promise<void> {
 export async function campaign(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("2");
-	await session.check("A first campaign opens with Halvard's transmission", async () => (await session.text("#mapTitle")) === "[ TRANSMISSION ]" && /INCOMING TRANSMISSION · HALVARD MINERAL TRUST/.test(await session.log()));
+	await session.check("A first campaign opens with Cyberdime's transmission", async () => (await session.text("#mapTitle")) === "[ TRANSMISSION ]" && /INCOMING TRANSMISSION · CYBERDIME MINING CO./.test(await session.log()));
 	await session.until(async () => /LACUNA · ICE MOON OF BRANNOCK/.test(await session.log()), "the moon scene", 20_000);
 	await session.check("The intro moves through the SOS to the moon", async () => /SIGNAL LOST/.test(await session.log()) && /LACUNA · ICE MOON OF BRANNOCK/.test(await session.log()), () => session.log());
 	await session.shot("intro-moon");

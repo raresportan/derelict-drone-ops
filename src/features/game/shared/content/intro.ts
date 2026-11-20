@@ -11,7 +11,7 @@ export default {
 		{ at: 24.4, scene: "descent" },
 	],
 	cards: [
-		{ at: 1.0, until: 7.8, title: "HALVARD MINERAL TRUST", sub: "PRIORITY CONTRACT 7731-K" },
+		{ at: 1.0, until: 7.8, title: "CYBERDIME MINING CO.", sub: "PRIORITY CONTRACT 7731-K" },
 		{ at: 8.8, until: 14.2, title: "LAST SIGNAL", sub: "LACUNA COMPLEX · 41 DAYS AGO" },
 		{ at: 15.8, until: 19.6, title: "LACUNA", sub: "ICE MOON OF BRANNOCK" },
 		{ at: 20.4, until: 24.2, title: "21 SITES · 3 REGIONS", sub: "EACH ONE DEEPER INTO THE ICE" },
@@ -27,7 +27,7 @@ export default {
 		{ at: 28.2, sound: "boom" },
 	],
 	lines: [
-		{ at: 0.6, text: " INCOMING TRANSMISSION · HALVARD MINERAL TRUST · PRIORITY ", kind: "alarm", typed: false },
+		{ at: 0.6, text: " INCOMING TRANSMISSION · CYBERDIME MINING CO. · PRIORITY ", kind: "alarm", typed: false },
 		{ at: 1.6, text: "CONTRACT 7731-K · SALVAGE AND ASSESSMENT · LACUNA COMPLEX", kind: "head", typed: "slow" },
 		{ at: 3.2, text: "Forty-one days ago our mining complex on the moon Lacuna stopped transmitting.", kind: "note", typed: "slow" },
 		{ at: 5.2, text: "Recover company assets. Assess the cause of the communications loss.", kind: "note", typed: "slow" },

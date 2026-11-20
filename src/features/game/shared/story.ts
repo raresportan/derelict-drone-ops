@@ -70,9 +70,9 @@ export const siteName = (site: number): string => (site > FINAL_SITE ? `DEEP SEC
 export const BRIEFING: Log = {
 	id: "H-00",
 	title: "Contractor briefing",
-	author: "Halvard Mineral Trust",
+	author: "Cyberdime Mining Co.",
 	lines: [
-		"Welcome, contractor. This hulk is a training simulation of Halvard property.",
+		"Welcome, contractor. This hulk is a training simulation of Cyberdime property.",
 		"On Lacuna you will find sealed sample canisters. They are company assets.",
 		"Recover them. Do not open them. Do not discuss them on open channels.",
 	],

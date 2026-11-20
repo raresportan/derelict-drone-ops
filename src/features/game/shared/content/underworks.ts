@@ -6,10 +6,10 @@ export default {
 		"The lights are off now. Your drones' lamps are the only warm things moving.",
 	],
 	story: [
-		{ id: "S06", from: 8, title: "Ops memo", author: "T. Ferreira, operations chief", lines: ["Purge vents installed in every ring below. Halvard says the cost comes out of our bonus.", "Fine. Nobody here is planning to spend it."] },
+		{ id: "S06", from: 8, title: "Ops memo", author: "T. Ferreira, operations chief", lines: ["Purge vents installed in every ring below. Cyberdime says the cost comes out of our bonus.", "Fine. Nobody here is planning to spend it."] },
 		{ id: "S07", from: 9, title: "Field notes, 14", author: "Dr Sun Ji-ho, biologist", lines: ["It isn't hunting us. It's hunting heat and sound.", "We are very warm and very loud."] },
 		{ id: "S08", from: 10, title: "Security log", author: "M. Kell, security chief", lines: ["It follows sound. Drones, engines, voices. Keep quiet.", "Pell's beacon pulled six of them into the pump hall. Then we vented it."] },
-		{ id: "S09", from: 12, title: "Message to Halvard", author: "L. Vasch, Halvard liaison", lines: ["Crew requesting evacuation of Lacuna complex. Advise.", "REPLY: DENIED. MAINTAIN BORE OPERATIONS. SAMPLES ARE PRIORITY ONE."] },
+		{ id: "S09", from: 12, title: "Message to Cyberdime", author: "L. Vasch, Cyberdime liaison", lines: ["Crew requesting evacuation of Lacuna complex. Advise.", "REPLY: DENIED. MAINTAIN BORE OPERATIONS. SAMPLES ARE PRIORITY ONE."] },
 		{ id: "S10", from: 14, title: "Unscheduled transmission", author: "Y. Brandt, communications", lines: ["Sending the SOS on my own key. Vasch can fire me.", "If anyone hears this: do not land. Do not —"] },
 	],
 	crew: [

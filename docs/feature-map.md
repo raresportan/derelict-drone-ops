@@ -13,9 +13,9 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ tutorial › "Doing step ${step} moves on to step ${step + 1}"
   - ✅ tutorial › "All three drones come home"
   - ✅ tutorial › "Undocking ends the tutorial and returns to the menu, marked done"
-- **The intro.** A first campaign opens with Halvard's transmission, the crew's SOS on a scope, a hard cut to SIGNAL LOST, an orbital pass over Lacuna and the hopper's landing: title cards on the screen, the log typed slowly, and sound cues when sound is on. Enter skips it, and 5 on the menu replays it.
+- **The intro.** A first campaign opens with Cyberdime's transmission, the crew's SOS on a scope, a hard cut to SIGNAL LOST, an orbital pass over Lacuna and the hopper's landing: title cards on the screen, the log typed slowly, and sound cues when sound is on. Enter skips it, and 5 on the menu replays it.
   - ❌ the cards, scenes and sound are checked by a unit test of the timeline (game.test.ts) and by eye on journey screenshots; no journey reads the canvas or hears audio.
-  - ✅ campaign › "A first campaign opens with Halvard's transmission"
+  - ✅ campaign › "A first campaign opens with Cyberdime's transmission"
   - ✅ campaign › "The intro moves through the SOS to the moon"
   - ✅ campaign › "Enter skips the rest into site 1, on the Surface"
 - **Boarding a site.** Type 2; the hopper lands at a generated site on Lacuna. Drones move with `nav` through open doors, survey rooms, gather salvage and fuel, and bank it in the dock.
@@ -52,7 +52,7 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ browser › "After a reload the menu offers to continue"
   - ❌ runs in Electron's Chromium, not in Safari or Firefox; the live deploy itself is checked by hand.
 - **The story.** Powered terminals hold the crew's logs: 15 story logs in order by depth across the Surface, the Underworks and the Bore, and 30 crew logs. `read` puts a log in the archive, which outlasts every run; 4 on the menu lists and replays it.
-  - ✅ tutorial › "Reading the training terminal prints Halvard's briefing"
+  - ✅ tutorial › "Reading the training terminal prints Cyberdime's briefing"
   - ✅ tutorial › "The archive keeps the briefing the tutorial's terminal gave up"
   - ❌ story order, depth gating and never-twice are covered by unit tests (game.test.ts); no journey reads a story terminal on a campaign site.
 - **The ending.** Lifting off the Bore floor, site 21, asks whether to DELIVER the canisters or BROADCAST the logs; the run then goes on into the deep sectors.

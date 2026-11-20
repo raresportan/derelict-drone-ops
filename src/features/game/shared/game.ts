@@ -35,7 +35,7 @@ const WORDS: Record<Mode, readonly string[]> = {
 /** Seconds between the hopper lifting off and what comes next, so the player sees how the boarding ended. */
 export const CAST_OFF = { toDrydock: 2.6, toMenu: 3.2, afterLoss: 1.5 } as const;
 
-/** Scrap Halvard pays for the sample canisters. */
+/** Scrap Cyberdime pays for the sample canisters. */
 export const DELIVERY_PAY = 25;
 
 /** The whole game: which screen it's on, the campaign, the boarding in progress, and the story text it has loaded. */
