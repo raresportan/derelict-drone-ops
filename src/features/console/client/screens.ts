@@ -1,4 +1,5 @@
-import { difficulty, type Drone, FINAL_SITE, type Game, MK2, type Mission, PRICE, ROLES, regionOf, type Room, lureReach, roomThreat, siteName } from "../../game/shared/index.ts";
+import { difficulty, type Drone, type DroneSpec, FINAL_SITE, type Game, MK2, type Mission, PRICE, regionOf, type Room, lureReach, roomThreat, siteName } from "../../game/shared/index.ts";
+import { drawDrone } from "./drone-art.ts";
 import { alpha, C } from "./palette.ts";
 
 const FONT = 'Menlo,Consolas,"Courier New",monospace';
@@ -92,7 +93,7 @@ export class Screens {
 		const m = game.mission;
 		if (game.mode === "mission" && m !== null) this.#mission(m, game.labels);
 		else if (game.mode === "intro" || game.mode === "ending") this.#cinema(game, now);
-		else if (game.mode === "drydock") this.#drydock(game);
+		else if (game.mode === "drydock") this.#drydock(game, now);
 		else if (game.mode === "over") this.#over(game);
 		else this.#menu(game, now);
 	}
@@ -548,44 +549,120 @@ export class Screens {
 		if (Math.floor(now / 530) % 2) this.#text("_", W / 2, y + f * 2.4, C.hot, f, { blur: 10 });
 	}
 
-	#drydock(game: Game): void {
+	#drydock(game: Game, now: number): void {
 		const camp = game.campaign;
 		if (camp === null) return;
 		this.#starfield(true);
-		const f = Math.max(11, Math.min(15, this.#w / 62)), lh = f * 1.7, x0 = Math.max(16, this.#w * 0.06);
-		let y = Math.max(24, this.#h * 0.08);
-		const line = (s: string, colour: string, size = f, blur = 6): void => {
-			this.#text(s, x0, y, colour, size, { align: "left", blur });
-		};
-		this.#inverse(game.drilling ? "SIMULATED DRYDOCK · ORIENTATION" : `DRYDOCK · AFTER SITE ${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}`, x0, y, C.n, f * 1.25, "left");
-		y += lh * 1.6;
-		line(`SCRAP ${String(camp.scrap).padStart(3)}     FUEL ${bar(Math.min(camp.fuel, 6) / 6, 6)} ${camp.fuel}`, C.hi);
-		y += lh * 1.4;
-		line("#  DRONE  MODULE   HULL               ARMOUR  THRUST  MK2", C.mid, f, 3);
-		y += lh;
-		for (const d of camp.drones) {
-			line(
-				d.alive
-					? `${d.id}  ${d.name.padEnd(5)}  ${d.mod.padEnd(7)}  ${bar(d.hull / 100, 10)} ${String(Math.ceil(d.hull)).padStart(3)}%   ${pips(d.armour, 2).padEnd(6)}  ${pips(d.thrust, 2).padEnd(6)}  ${d.mk2 ? "■" : "□"}`
-					: `${d.id}  ${d.name.padEnd(5)}  ${d.mod.padEnd(7)}  — LOST —  rebuild ${PRICE.rebuild} scrap`,
-				d.alive ? (d.hull < 40 ? C.hot : C.n) : C.hot,
-			);
-			y += lh;
-		}
-		y += lh * 0.6;
-		line(`PRICES  repair ${PRICE.repairPer25}/25% hull · rebuild ${PRICE.rebuild} · armour ${PRICE.armour} · thrust ${PRICE.thrust} · mk2 ${PRICE.mk2} · fuel ${PRICE.fuel}`, C.mid, f * 0.9, 3);
-		y += lh;
-		for (const role of ROLES) {
-			line(`MK2 ${role.name}: ${MK2[role.mod]}`, C.dim, f * 0.9, 2);
-			y += lh * 0.85;
-		}
-		y += lh * 0.6;
+		const ctx = this.#ctx, W = this.#w, H = this.#h, t = now / 1000;
+		const f = Math.max(11, Math.min(15, W / 62)), lh = f * 1.6, x0 = Math.max(14, W * 0.035), right = W - x0;
+		let y = Math.max(20, H * 0.06);
+		this.#inverse(game.drilling ? "SIMULATED DRYDOCK · ORIENTATION" : `DRYDOCK · AFTER SITE ${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}`, x0, y, C.n, f * 1.15, "left");
+		this.#text(`SCRAP ${camp.scrap}   FUEL ${bar(Math.min(camp.fuel, 6) / 6, 6)} ${camp.fuel}`, right, y, C.hi, f, { align: "right", blur: 6 });
+		const footer = lh * 3.4, top = y + lh * 1.3, bottom = H - footer - lh * 0.3, gap = Math.max(8, W * 0.015);
+		const bw = (right - x0 - gap * 2) / 3, bh = bottom - top;
+		camp.drones.forEach((d, i) => this.#bay(d, x0 + i * (bw + gap), top, bw, bh, f, t));
+		y = bottom + lh * 0.9;
+		const small = f * 0.9;
+		this.#text(`PRICES  repair ${PRICE.repairPer25}/25% hull · rebuild ${PRICE.rebuild} · armour ${PRICE.armour} · thrust ${PRICE.thrust} · mk2 ${PRICE.mk2} · fuel ${PRICE.fuel}`, x0, y, C.mid, small, { align: "left", blur: 3 });
 		const site = camp.ended ? camp.jump + 1 : Math.min(camp.jump + 1, FINAL_SITE), next = difficulty(site);
-		line(`NEXT  SITE ${site} · ${siteName(site)} · ${regionOf(site).name}`, C.n);
 		y += lh;
-		line(`      ~${next.creatures} lifeform${next.creatures > 1 ? "s" : ""} · ${next.rad} radiation leak${next.rad === 1 ? "" : "s"}`, C.mid, f, 3);
+		this.#text(`NEXT  SITE ${site} · ${siteName(site)} · ${regionOf(site).name} · ~${next.creatures} lifeform${next.creatures > 1 ? "s" : ""} · ${next.rad} radiation leak${next.rad === 1 ? "" : "s"}`, x0, y, C.n, small, { align: "left", blur: 5 });
 		y += lh;
-		line(camp.fuel > 0 ? "Type HOP (F7) to burn 1 fuel and fly there." : `No fuel. BUY FUEL for ${PRICE.fuel} scrap.`, camp.fuel > 0 ? C.hi : C.hot);
+		this.#text(camp.fuel > 0 ? "Type HOP (F7) to burn 1 fuel and fly there." : `No fuel. BUY FUEL for ${PRICE.fuel} scrap.`, x0, y, camp.fuel > 0 ? C.hi : C.hot, small, { align: "left", blur: 6 });
+		ctx.textAlign = "left";
+	}
+
+	/** One drone's bay: a blueprint of the drone with its upgrades, then its hull, fittings and what MK2 does for it. */
+	#bay(d: DroneSpec, x: number, y: number, w: number, h: number, f: number, t: number): void {
+		const ctx = this.#ctx, pad = Math.max(6, w * 0.05), head = f * 1.7, lost = !d.alive;
+		ctx.fillStyle = C.tube;
+		ctx.fillRect(x, y, w, h);
+		ctx.lineWidth = 1;
+		ctx.strokeStyle = alpha(C.mid, 0.55);
+		ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+		ctx.fillStyle = alpha(C.mid, 0.08);
+		for (let gx = x + 12; gx < x + w; gx += 12) for (let gy = y + head + 12; gy < y + h; gy += 12) ctx.fillRect(gx, gy, 1, 1);
+		ctx.strokeStyle = C.n;
+		ctx.lineWidth = 2;
+		for (const [cx, cy, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]] as const) {
+			ctx.beginPath();
+			ctx.moveTo(cx + sx * 10, cy);
+			ctx.lineTo(cx, cy);
+			ctx.lineTo(cx, cy + sy * 10);
+			ctx.stroke();
+		}
+		ctx.fillStyle = alpha(C.n, lost ? 0.12 : 0.18);
+		ctx.fillRect(x + 1, y + 1, w - 2, head);
+		this.#text(`${d.id}  ${d.name}`, x + pad, y + head / 2 + 1, lost ? C.hot : C.hi, f * 1.05, { align: "left", bold: true, blur: 6 });
+		this.#text(d.mod + (d.mk2 ? " MK2" : ""), x + w - pad, y + head / 2 + 1, d.mk2 ? C.hi : C.mid, f * 0.85, { align: "right", blur: 4 });
+		const stats = f * 5.6, artTop = y + head + f * 0.4, artH = h - head - stats - f * 0.4;
+		const size = Math.max(40, Math.min(w * 0.8, artH * 1.2));
+		const cx = x + w / 2, cy = artTop + artH * 0.6;
+		ctx.save();
+		ctx.beginPath();
+		ctx.rect(x + 1, y + head + 1, w - 2, h - head - stats);
+		ctx.clip();
+		drawDrone(ctx, cx, cy, size, d, t);
+		ctx.restore();
+		if (lost) this.#inverse("LOST", cx, cy - size * 0.05, C.hot, f * 1.1);
+		const u = size / 100, dimY = cy + 40 * u;
+		if (dimY < y + h - stats - 2) {
+			ctx.strokeStyle = alpha(C.mid, 0.6);
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(cx - 36 * u, dimY);
+			ctx.lineTo(cx + 36 * u, dimY);
+			for (const ex of [-36, 36]) {
+				ctx.moveTo(cx + ex * u, dimY - 3);
+				ctx.lineTo(cx + ex * u, dimY + 3);
+			}
+			ctx.stroke();
+			this.#text(d.mod === "SHIELD" ? "1.1 M" : d.mod === "MOTION" ? "0.8 M" : "0.9 M", cx, dimY + f * 0.6, C.dim, f * 0.7, { blur: 0 });
+		}
+		let ly = y + h - stats + f * 0.7;
+		const line = (s: string, colour: string, size = f * 0.92, blur = 4): void => {
+			this.#text(this.#clip(s, w - pad * 2, size), x + pad, ly, colour, size, { align: "left", blur });
+			ly += f * 1.3;
+		};
+		if (lost) {
+			line("NO SIGNAL", C.hot);
+			line(`REBUILD ${d.id} · ${PRICE.rebuild} scrap`, C.hi);
+			line("Comes back bare: no upgrades.", C.dim, f * 0.8, 0);
+			return;
+		}
+		const hull = Math.max(0, Math.ceil(d.hull));
+		line(`HULL ${bar(hull / 100, 8)} ${String(hull).padStart(3)}%`, hull < 40 ? C.hot : C.n);
+		line(`ARM ${pips(d.armour, 2)}  THR ${pips(d.thrust, 2)}  MK2 ${d.mk2 ? "■" : "□"}`, C.n);
+		const note = f * 0.8;
+		for (const part of this.#wrap(d.mk2 ? `MK2: ${MK2[d.mod]}` : `MK2 for ${PRICE.mk2} scrap: ${MK2[d.mod]}`, w - pad * 2, note).slice(0, 2)) {
+			this.#text(part, x + pad, ly, d.mk2 ? C.mid : C.dim, note, { align: "left", blur: 0 });
+			ly += note * 1.35;
+		}
+	}
+
+	/** `s` broken into lines that fit `width` at `size`. */
+	#wrap(s: string, width: number, size: number): string[] {
+		this.#ctx.font = `${size}px ${FONT}`;
+		const lines: string[] = [];
+		let current = "";
+		for (const word of s.split(" ")) {
+			const next = current === "" ? word : `${current} ${word}`;
+			if (current !== "" && this.#ctx.measureText(next).width > width) {
+				lines.push(current);
+				current = word;
+			} else current = next;
+		}
+		if (current !== "") lines.push(current);
+		return lines;
+	}
+
+	/** `s`, cut with an ellipsis to fit `width` at `size`. */
+	#clip(s: string, width: number, size: number): string {
+		this.#ctx.font = `${size}px ${FONT}`;
+		if (this.#ctx.measureText(s).width <= width) return s;
+		let cut = s;
+		while (cut.length > 1 && this.#ctx.measureText(`${cut}…`).width > width) cut = cut.slice(0, -1);
+		return `${cut}…`;
 	}
 
 	#cinema(game: Game, now: number): void {
