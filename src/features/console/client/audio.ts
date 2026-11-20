@@ -3,7 +3,7 @@ import { SOS_MARKS } from "./sos.ts";
 
 export type Loop = "ambient" | "servo" | "grind" | "crackle";
 
-const LOOP_VOLUME: Record<Loop, number> = { ambient: 0.05, servo: 0.02, grind: 0.04, crackle: 0.06 };
+const LOOP_VOLUME: Record<Loop, number> = { ambient: 0.05, servo: 0.02, grind: 0.04, crackle: 0.03 };
 const LOOP_SPACE: Record<Loop, number> = { ambient: 0.3, servo: 0.25, grind: 0.35, crackle: 0.04 };
 
 /** The shape of one sound layer: when it starts, how it swells, holds and dies, and how much of the hull's echo it gets. */
