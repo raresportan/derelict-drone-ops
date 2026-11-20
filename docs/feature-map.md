@@ -24,6 +24,8 @@ Everything the game does, how a player reaches it, and what verifies it.
 - **Drone cams.** Each drone's card shows a live feed of what it's doing: a corridor rushing past while it moves, a slow pan when idle, the bay when docked, a claw on a crate while gathering and a scrolling terminal while reading (both with a progress bar), a striped door when blocked, WREN's scan sweep, BUOY's decoy rings, a lifeform's silhouette, and static when the drone is lost. Every working cam breaks up now and then: a few seconds of heavy static and torn lines, at random and on its own schedule.
   - ✅ tutorial › "A gathering drone's cam shows the job's progress bar filling"
   - ❌ the other scenes are checked by eye on screenshots; no journey reads their pixels. The interference's timing is unit tested (cam.test.ts), its look by eye.
+- **Background sound.** With sound on, a boarding has a low hull hum and the odd creak, servos while drones move, a grinding clank while one gathers, data chirps while one reads, crackle in time with the cams' interference, and a motion-tracker beep that quickens and rises as a drone nears a seen or suspected lifeform.
+  - ❌ the mix is unit tested (game.test.ts) and the app was played once with sound on and no errors; no journey hears audio.
 - **Lifeforms and hazards.** Lifeforms hunt drones through open doors, closed doors stop them, purge valves kill them, radiation wears hulls down. On the map a room with a lifeform in sight is red, and a room where one was sensed (a motion contact, or a lifeform that slipped out of sight) is reddish, fading over 25 seconds unless a drone looks in first.
   - ✅ fight › "The lair is shut off: no open route to it"
   - ✅ fight › "A lifeform is detected once MOTH shares its room"

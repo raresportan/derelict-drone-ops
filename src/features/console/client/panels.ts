@@ -131,7 +131,7 @@ export class Panels {
 		this.#drones(game).forEach((d, i) => {
 			const card = this.#cards[i];
 			if (card === undefined) return;
-			drawCam(card.feed.getContext("2d")!, this.#view(game, m, d, i), now / 1000, HOT_PIXEL, phosphor);
+			drawCam(card.feed.getContext("2d", { willReadFrequently: true })!, this.#view(game, m, d, i), now / 1000, HOT_PIXEL, phosphor);
 		});
 	}
 

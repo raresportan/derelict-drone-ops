@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { askedCommand, type Best, type Campaign, CAST_OFF, DELIVERY_PAY, difficulty, FINAL_SITE, Game, type LogKind, PRICE, READ_SECONDS, roomThreat, type SaveStore, seeded, type Sink, type Sound, START_FUEL, SUSPECT_SECONDS, type Typing } from "../src/features/game/shared/index.ts";
+import { mix } from "../src/features/console/client/soundscape.ts";
 
 class Recorder implements Sink {
 	lines: { text: string; kind: LogKind; typed: Typing }[] = [];
@@ -251,6 +252,28 @@ test("the map marks a room red while a lifeform is in sight, and suspected after
 	place(room);
 	game.tick(0.05);
 	assert.deepEqual(roomThreat(m, room), { seen: false, suspected: 0 }, "a drone that looks in and finds nothing clears it");
+});
+
+test("the background sound follows the boarding: hum aboard, servos while moving, and a tracker that quickens near lifeforms", () => {
+	const { game } = setup();
+	assert.deepEqual(mix(game, 0), { ambient: 0, servo: 0, grind: 0, reading: 0, crackle: 0, tracker: 0 }, "silent at the menu");
+	game.command("2");
+	const m = game.mission!, wren = m.drones[0]!;
+	for (const c of m.creatures) c.alive = false;
+	assert.equal(mix(game, 0).ambient, 1);
+	assert.equal(mix(game, 0).tracker, 0, "nothing sensed while docked");
+	game.command(`nav 1 r${m.rooms[m.start]!.num}`);
+	game.tick(0.05);
+	assert.equal(mix(game, 0).servo, 0.5, "one of two servos' worth while WREN moves");
+	Object.assign(wren, { node: m.start, path: [], state: "IDLE" });
+	const next = m.adj[m.start]!.map((l) => l.to).find((n) => n < m.rooms.length)!;
+	m.suspect.set(next, SUSPECT_SECONDS);
+	assert.equal(mix(game, 0).tracker, 0.35, "suspected next door");
+	m.suspect.set(m.start, SUSPECT_SECONDS);
+	assert.equal(mix(game, 0).tracker, 0.6, "suspected in WREN's own room");
+	Object.assign(m.creatures[0]!, { alive: true, vis: true, node: m.start });
+	assert.equal(mix(game, 0).tracker, 1, "in sight");
+	for (let t = 0; t < 30; t += 0.5) assert.ok(mix(game, t).crackle >= 0 && mix(game, t).crackle <= 1);
 });
 
 test("a purge kills every lifeform in its room, once", () => {

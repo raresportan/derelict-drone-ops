@@ -2,6 +2,7 @@ import { Game, type SaveStore } from "../../game/shared/index.ts";
 import { Beeper } from "./audio.ts";
 import { Panels } from "./panels.ts";
 import { Screens } from "./screens.ts";
+import { Soundscape } from "./soundscape.ts";
 import { Terminal } from "./terminal.ts";
 
 const MAX_STEP = 0.05;
@@ -11,6 +12,7 @@ export function mountConsole(doc: Document, saves: SaveStore): Game {
 	const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 	const out = doc.getElementById("out")!, input = doc.getElementById("cmd") as HTMLInputElement, canvas = doc.getElementById("map") as HTMLCanvasElement;
 	const beeper = new Beeper();
+	const soundscape = new Soundscape(beeper);
 	const terminal = new Terminal(out, beeper, reduced);
 	const game = new Game(terminal, saves);
 	const screens = new Screens(canvas);
@@ -86,6 +88,7 @@ export function mountConsole(doc: Document, saves: SaveStore): Game {
 		terminal.pump(now);
 		screens.draw(game, dt, now);
 		panels.update(game, now);
+		soundscape.update(game, now);
 		requestAnimationFrame(frame);
 	};
 	game.showMenu();
