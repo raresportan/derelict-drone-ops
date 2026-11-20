@@ -177,6 +177,27 @@ export function roomThreat(m: Mission, i: number): { seen: boolean; suspected: n
 	return { seen: m.creatures.some((c) => c.alive && c.vis && c.node === i), suspected: (m.suspect.get(i) ?? 0) / SUSPECT_SECONDS };
 }
 
+/**
+ * The rooms a sounding decoy can be heard in, each with how many doors away it is: the same open-door routes, within the
+ * same reach, that a lifeform would follow to it. Empty when no decoy is sounding.
+ */
+export function lureReach(m: Mission): Map<number, number> {
+	const lure = m.lure, heard = new Map<number, number>();
+	if (lure === null || lure.t <= 0 || lure.node === m.dock) return heard;
+	heard.set(lure.node, 0);
+	const queue = [lure.node];
+	while (queue.length > 0) {
+		const room = queue.shift()!, steps = heard.get(room)!;
+		if (steps >= lure.reach) continue;
+		for (const link of m.adj[room]!) {
+			if (!m.doors[link.door]!.open || link.to === m.dock || heard.has(link.to)) continue;
+			heard.set(link.to, steps + 1);
+			queue.push(link.to);
+		}
+	}
+	return heard;
+}
+
 export function tickMission(m: Mission, dt: number, sink: Sink, rng: Rng): boolean {
 	if (m.end === null) m.t += dt;
 	for (const f of m.fx) f.t += dt;

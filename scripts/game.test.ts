@@ -1,7 +1,7 @@
 // The game's modes, rules and saves, played through commands on its own clock: run with npm test.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { askedCommand, type Best, type Campaign, CAST_OFF, DELIVERY_PAY, difficulty, FINAL_SITE, Game, type LogKind, PRICE, READ_SECONDS, roomThreat, type SaveStore, seeded, type Sink, type Sound, START_FUEL, SUSPECT_SECONDS, type Typing } from "../src/features/game/shared/index.ts";
+import { askedCommand, type Best, type Campaign, CAST_OFF, DELIVERY_PAY, difficulty, FINAL_SITE, findPath, Game, type LogKind, PRICE, lureReach, READ_SECONDS, roomThreat, type SaveStore, seeded, type Sink, type Sound, START_FUEL, SUSPECT_SECONDS, type Typing } from "../src/features/game/shared/index.ts";
 import { mix } from "../src/features/console/client/soundscape.ts";
 
 class Recorder implements Sink {
@@ -274,6 +274,26 @@ test("the background sound follows the boarding: hum aboard, servos while moving
 	Object.assign(m.creatures[0]!, { alive: true, vis: true, node: m.start });
 	assert.equal(mix(game, 0).tracker, 1, "in sight");
 	for (let t = 0; t < 30; t += 0.5) assert.ok(mix(game, t).crackle >= 0 && mix(game, t).crackle <= 1);
+});
+
+test("a decoy is heard only through open doors, as far as BUOY's reach", () => {
+	const { game } = setup();
+	game.command("2");
+	const m = game.mission!, buoy = m.drones[2]!;
+	Object.assign(buoy, { node: m.start, x: m.rooms[m.start]!.cx, y: m.rooms[m.start]!.cy, path: [], state: "IDLE" });
+	assert.equal(lureReach(m).size, 0, "silent before the lure");
+	for (const d of m.doors) if (!d.air) d.open = false;
+	game.command("lure");
+	assert.deepEqual([...lureReach(m)], [[m.start, 0]], "every door shut: only BUOY's room hears it");
+	for (const d of m.doors) d.open = true;
+	const heard = lureReach(m);
+	const reachable = (steps: number) => [...heard.values()].filter((s) => s === steps).length;
+	assert.ok(reachable(1) >= 1, "open doors carry it to the next rooms");
+	assert.ok([...heard.values()].every((s) => s <= m.lure!.reach), "never past the reach");
+	assert.ok(!heard.has(m.dock), "never into the dock");
+	for (const [room, steps] of heard) assert.equal(steps, findPath(m, m.start, room, { noDock: true })!.length, "the same routes a lifeform would follow");
+	m.lure!.t = 0;
+	assert.equal(lureReach(m).size, 0, "gone once the decoy stops");
 });
 
 test("a purge kills every lifeform in its room, once", () => {

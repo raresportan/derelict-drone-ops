@@ -26,7 +26,7 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ❌ the other scenes are checked by eye on screenshots; no journey reads their pixels. The interference's timing is unit tested (cam.test.ts), its look by eye.
 - **Background sound.** With sound on, a boarding has a low hull hum and the odd creak, servos while drones move, a grinding clank while one gathers, data chirps while one reads, crackle in time with the cams' interference, and a motion-tracker beep that quickens and rises as a drone nears a seen or suspected lifeform.
   - ❌ the mix is unit tested (game.test.ts) and the app was played once with sound on and no errors; no journey hears audio.
-- **Lifeforms and hazards.** Lifeforms hunt drones through open doors, closed doors stop them, purge valves kill them, radiation wears hulls down. On the map a room with a lifeform in sight is red, and a room where one was sensed (a motion contact, or a lifeform that slipped out of sight) is reddish, fading over 25 seconds unless a drone looks in first.
+- **Lifeforms and hazards.** Lifeforms hunt drones through open doors, closed doors stop them, purge valves kill them, radiation wears hulls down. On the map a room with a lifeform in sight is red, and a room where one was sensed (a motion contact, or a lifeform that slipped out of sight) is reddish, fading over 25 seconds unless a drone looks in first. While BUOY's decoy sounds, the rooms it can be heard in, through open doors and within its reach, pulse orange outward from BUOY; a closed door stops it there.
   - ✅ fight › "The lair is shut off: no open route to it"
   - ✅ fight › "A lifeform is detected once MOTH shares its room"
   - ✅ fight › "The lair glows red on the map while MOTH sees the lifeform"
@@ -35,6 +35,7 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ fight › "Purging the lair kills the lifeform, and MOTH with it"
   - ✅ fight › "With MOTH gone the alarm clears"
   - ✅ fight › "With the lair seen empty, no room stays red"
+  - ❌ the decoy's reach is unit tested (game.test.ts) and checked by eye on screenshots; no journey reads it off the map.
   - ✅ fight › "WREN, sent in after the purge, finds the lair empty"
   - ❌ radiation, the decoy and a lifeform stopped at a closed door are covered by unit tests only (game.test.ts covers doors; radiation and the decoy have none).
 - **Drydock and hops.** Undocking reaches the drydock, where scrap buys repairs, rebuilds, upgrades and fuel; HOP flies to the next, harder site.

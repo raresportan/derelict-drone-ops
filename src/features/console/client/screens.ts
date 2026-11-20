@@ -1,4 +1,4 @@
-import { difficulty, type Drone, FINAL_SITE, type Game, MK2, type Mission, PRICE, ROLES, regionOf, type Room, roomThreat, siteName } from "../../game/shared/index.ts";
+import { difficulty, type Drone, FINAL_SITE, type Game, MK2, type Mission, PRICE, ROLES, regionOf, type Room, lureReach, roomThreat, siteName } from "../../game/shared/index.ts";
 import { alpha, C } from "./palette.ts";
 
 const FONT = 'Menlo,Consolas,"Courier New",monospace';
@@ -165,6 +165,24 @@ export class Screens {
 		ctx.lineTo(x, y + s * 0.2);
 		ctx.stroke();
 		this.#plain();
+	}
+
+	/** The rooms a sounding decoy carries to, pulsing outward from BUOY one door at a time. */
+	#decoy(m: Mission): void {
+		const ctx = this.#ctx, S = this.#scale;
+		for (const [i, steps] of lureReach(m)) {
+			const r = m.rooms[i];
+			if (r === undefined) continue;
+			const x = this.#X(r.x + 0.5), y = this.#Y(r.y + 0.5), w = (r.w - 1) * S, h = (r.h - 1) * S;
+			const wave = 0.5 + 0.5 * Math.sin(m.t * 5 - steps * 1.3);
+			ctx.fillStyle = alpha(C.hot, 0.06 + 0.14 * wave);
+			ctx.fillRect(x, y, w, h);
+			ctx.lineWidth = 1.5;
+			ctx.setLineDash([3, 5]);
+			ctx.strokeStyle = alpha(C.hot, 0.4 + 0.5 * wave);
+			ctx.strokeRect(x + 4, y + 4, w - 8, h - 8);
+			ctx.setLineDash([]);
+		}
 	}
 
 	#room(m: Mission, r: Room, i: number, watched: Set<number>, labels: boolean): void {
@@ -453,6 +471,7 @@ export class Screens {
 		const watched = new Set(m.drones.filter((d) => d.alive).map((d) => d.node));
 		this.#dock(m, labels);
 		m.rooms.forEach((r, i) => this.#room(m, r, i, watched, labels));
+		this.#decoy(m);
 		this.#doors(m, labels);
 		this.#target(m);
 		this.#effects(m);
