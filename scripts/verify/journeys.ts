@@ -31,7 +31,7 @@ const progressShown = (session: Session, card: number) =>
 	session.page.evaluate((index) => {
 		const feed = document.querySelectorAll<HTMLCanvasElement>("#cards canvas")[index]!;
 		const row = feed.getContext("2d")!.getImageData(2, feed.height - 3, 4, 1).data;
-		return [0, 4, 8, 12].every((i) => row[i + 1]! > 140);
+		return [0, 4, 8, 12].every((i) => row[i + 1]! > 100);
 	}, card);
 
 export async function tutorial(session: Session): Promise<void> {

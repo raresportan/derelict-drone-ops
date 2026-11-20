@@ -14,12 +14,34 @@ export interface CamView {
 	luring: boolean;
 	threat: boolean;
 	rad: boolean;
+	channel: number;
 }
 
 const hash = (i: number): number => {
 	const x = Math.sin(i * 91.7 + 47.3) * 43758.5453;
 	return x - Math.floor(x);
 };
+
+const SLOT = 7;
+
+/**
+ * How badly interference is breaking up a channel's signal `t` seconds in, from 0 to 1. About half of each 7-second slot
+ * holds a burst of 1.5 to 4.5 seconds, at a random moment and different for every channel, fading in and out.
+ */
+export function interference(t: number, channel: number): number {
+	const slot = Math.floor(t / SLOT), key = slot * 13 + channel * 101;
+	if (hash(key) > 0.55) return 0;
+	const length = 1.5 + hash(key + 2) * 3, into = t - slot * SLOT - hash(key + 1) * (SLOT - length);
+	if (into < 0 || into > length) return 0;
+	return Math.min(1, Math.min(into, length - into) / 0.3);
+}
+
+function tear(ctx: CanvasRenderingContext2D, burst: number): void {
+	for (let band = 0; band < 1 + Math.floor(burst * 4); band++) {
+		const y = Math.floor(Math.random() * CAM_H), h = 1 + Math.floor(Math.random() * 4), dx = Math.round((Math.random() - 0.5) * 30 * burst);
+		ctx.drawImage(ctx.canvas, 0, y, CAM_W, h, dx, y, CAM_W, h);
+	}
+}
 
 const CX = CAM_W / 2, CY = CAM_H / 2, BACK_W = 26, BACK_H = 7;
 
@@ -217,8 +239,10 @@ export function drawCam(ctx: CanvasRenderingContext2D, view: CamView, t: number,
 		if (view.scanning) sweep(ctx, t, view.room);
 		if (view.luring) rings(ctx, t);
 	}
+	const burst = s === "static" ? 0 : interference(t, view.channel) * (0.75 + Math.random() * 0.25);
+	if (burst > 0) tear(ctx, burst);
 	const image = ctx.getImageData(0, 0, CAM_W, CAM_H), px = image.data;
-	const roll = Math.floor(t * 18) % CAM_H, grain = s === "static" ? 1 : view.rad ? 0.25 : s === "standby" ? 0.02 : 0.025;
+	const roll = Math.floor(t * (18 + burst * 40)) % CAM_H, grain = s === "static" ? 1 : Math.max(view.rad ? 0.25 : s === "standby" ? 0.02 : 0.025, burst * 0.25), fade = 1 - burst * 0.3;
 	for (let p = 0; p < CAM_W * CAM_H; p++) {
 		const n = Math.random(), row = Math.floor(p / CAM_W), i = p * 4;
 		if (s === "static") {
@@ -232,16 +256,16 @@ export function drawCam(ctx: CanvasRenderingContext2D, view: CamView, t: number,
 			[px[i], px[i + 1], px[i + 2]] = threatPixel;
 			continue;
 		}
+		const lift = (row === roll || row === (roll + 1) % CAM_H ? 1.35 + burst : row % 2 ? 0.8 : 1) * fade;
+		px[i] = Math.min(255, px[i]! * lift);
+		px[i + 1] = Math.min(255, px[i + 1]! * lift);
+		px[i + 2] = Math.min(255, px[i + 2]! * lift);
 		if (n < grain) {
-			const [r, g, b] = phosphor(70 + n * 1100);
+			const [r, g, b] = phosphor(70 + (n / grain) * 200 + burst * 60 * Math.random());
 			px[i] = Math.max(px[i]!, r);
 			px[i + 1] = Math.max(px[i + 1]!, g);
 			px[i + 2] = Math.max(px[i + 2]!, b);
 		}
-		const lift = row === roll || row === (roll + 1) % CAM_H ? 1.35 : row % 2 ? 0.8 : 1;
-		px[i] = Math.min(255, px[i]! * lift);
-		px[i + 1] = Math.min(255, px[i + 1]! * lift);
-		px[i + 2] = Math.min(255, px[i + 2]! * lift);
 	}
 	ctx.putImageData(image, 0, 0);
 }

@@ -137,7 +137,7 @@ export class Panels {
 
 	#view(game: Game, m: Mission | null, d: DroneSpec, i: number): CamView {
 		const live = m?.drones[i];
-		const view: CamView = { scene: "standby", progress: 0, room: 0, heading: 0, scanning: false, luring: false, threat: false, rad: false };
+		const view: CamView = { scene: "standby", progress: 0, room: 0, heading: 0, scanning: false, luring: false, threat: false, rad: false, channel: d.id };
 		if (!d.alive) return { ...view, scene: "static" };
 		if (m === null || live === undefined) return { ...view, scene: game.mode === "drydock" ? "bay" : "standby" };
 		const scene = SCENE[live.state];
@@ -150,6 +150,7 @@ export class Panels {
 			luring: live.mod === "LURE" && m.lure !== null && m.lure.t > 0,
 			threat: this.#threatened(m, i),
 			rad: live.node !== m.dock && m.rooms[live.node]!.rad,
+			channel: d.id,
 		};
 	}
 

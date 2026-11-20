@@ -21,9 +21,9 @@ Everything the game does, how a player reaches it, and what verifies it.
 - **Boarding a site.** Type 2; the hopper lands at a generated site on Lacuna. Drones move with `nav` through open doors, survey rooms, gather salvage and fuel, and bank it in the dock.
   - ✅ campaign › "The Surface's opening beat sets the scene"
   - ❌ moving, gathering and banking are covered by unit tests (game.test.ts) and the tutorial journey, not by a campaign journey on a generated ship.
-- **Drone cams.** Each drone's card shows a live feed of what it's doing: a corridor rushing past while it moves, a slow pan when idle, the bay when docked, a claw on a crate while gathering and a scrolling terminal while reading (both with a progress bar), a striped door when blocked, WREN's scan sweep, BUOY's decoy rings, a lifeform's silhouette, and static when the drone is lost.
+- **Drone cams.** Each drone's card shows a live feed of what it's doing: a corridor rushing past while it moves, a slow pan when idle, the bay when docked, a claw on a crate while gathering and a scrolling terminal while reading (both with a progress bar), a striped door when blocked, WREN's scan sweep, BUOY's decoy rings, a lifeform's silhouette, and static when the drone is lost. Every working cam breaks up now and then: a few seconds of heavy static and torn lines, at random and on its own schedule.
   - ✅ tutorial › "A gathering drone's cam shows the job's progress bar filling"
-  - ❌ the other scenes are checked by eye on screenshots; no journey reads their pixels.
+  - ❌ the other scenes are checked by eye on screenshots; no journey reads their pixels. The interference's timing is unit tested (cam.test.ts), its look by eye.
 - **Lifeforms and hazards.** Lifeforms hunt drones through open doors, closed doors stop them, purge valves kill them, radiation wears hulls down.
   - ✅ fight › "The lair is shut off: no open route to it"
   - ✅ fight › "A lifeform is detected once MOTH shares its room"
