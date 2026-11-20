@@ -27,6 +27,13 @@ export async function boots(session: Session): Promise<void> {
 	await session.shot("menu");
 }
 
+const progressShown = (session: Session, card: number) =>
+	session.page.evaluate((index) => {
+		const feed = document.querySelectorAll<HTMLCanvasElement>("#cards canvas")[index]!;
+		const row = feed.getContext("2d")!.getImageData(2, feed.height - 3, 4, 1).data;
+		return [0, 4, 8, 12].every((i) => row[i + 1]! > 140);
+	}, card);
+
 export async function tutorial(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("1");
@@ -34,6 +41,7 @@ export async function tutorial(session: Session): Promise<void> {
 	for (let step = 1; step < 8; step++) {
 		const hint = await session.text("#tut");
 		await session.type(askedCommand(hint));
+		if (askedCommand(hint).startsWith("gather")) await session.check("A gathering drone's cam shows the job's progress bar filling", () => progressShown(session, 1), () => session.page.locator("#cards em").allInnerTexts().then((s) => s.join(", ")));
 		await session.check(`Doing step ${step} moves on to step ${step + 1}`, async () => (await session.text("#tut")).startsWith(`TUTORIAL ${step + 1}/8`), () => session.text("#tut"));
 	}
 	await session.check("Reading the training terminal prints Cyberdime's briefing", async () => /H-00 · CONTRACTOR BRIEFING/.test(await session.log()), () => session.log());

@@ -1,8 +1,7 @@
-import { baseDrones, type DroneSpec, FINAL_SITE, type Game, type Mission, nodeName, regionOf } from "../../game/shared/index.ts";
+import { baseDrones, type DroneSpec, type DroneState, FINAL_SITE, type Game, type Mission, nodeName, regionOf } from "../../game/shared/index.ts";
+import { CAM_H, CAM_W, type CamScene, type CamView, drawCam } from "./cam.ts";
 import { HOT_PIXEL, phosphor } from "./palette.ts";
 import { bar, pips } from "./screens.ts";
-
-const FEED_W = 96, FEED_H = 32;
 
 interface Card {
 	feed: HTMLCanvasElement;
@@ -15,6 +14,8 @@ interface Card {
 	middle: HTMLElement;
 	module: HTMLElement;
 }
+
+const SCENE: Record<DroneState, CamScene> = { DOCKED: "bay", IDLE: "idle", MOVING: "moving", GATHERING: "gathering", READING: "reading", BLOCKED: "blocked", LOST: "static" };
 
 const el = (doc: Document, id: string): HTMLElement => doc.getElementById(id)!;
 
@@ -97,8 +98,8 @@ export class Panels {
 			const frame = doc.createElement("div");
 			frame.className = "feedw";
 			const feed = doc.createElement("canvas");
-			feed.width = FEED_W;
-			feed.height = FEED_H;
+			feed.width = CAM_W;
+			feed.height = CAM_H;
 			const overlay = doc.createElement("div");
 			overlay.className = "ov";
 			const camera = span(doc, "a-b"), alert = span(doc, "al");
@@ -127,27 +128,29 @@ export class Panels {
 
 	#feeds(game: Game, now: number): void {
 		const m = game.mode === "mission" ? game.mission : null;
-		const roll = Math.floor((now / 1000) * 24) % FEED_H;
 		this.#drones(game).forEach((d, i) => {
 			const card = this.#cards[i];
 			if (card === undefined) return;
-			const ctx = card.feed.getContext("2d")!;
-			const image = ctx.createImageData(FEED_W, FEED_H), px = image.data;
-			const threat = this.#threatened(m, i);
-			for (let p = 0; p < FEED_W * FEED_H; p++) {
-				const n = Math.random(), row = Math.floor(p / FEED_W);
-				let v: number;
-				if (!d.alive) v = n * 170;
-				else if (m === null) v = n < 0.02 ? 60 + n * 800 : 8 + (row % 2 ? 0 : 4);
-				else v = n < 0.08 ? 70 + n * 1100 : 10 + (row === roll || row === (roll + 1) % FEED_H ? 26 : 0) + (row % 2 ? 0 : 6);
-				const [r, g, b] = threat && n < 0.22 ? HOT_PIXEL : phosphor(Math.min(255, v));
-				px[p * 4] = r;
-				px[p * 4 + 1] = g;
-				px[p * 4 + 2] = b;
-				px[p * 4 + 3] = 255;
-			}
-			ctx.putImageData(image, 0, 0);
+			drawCam(card.feed.getContext("2d")!, this.#view(game, m, d, i), now / 1000, HOT_PIXEL, phosphor);
 		});
+	}
+
+	#view(game: Game, m: Mission | null, d: DroneSpec, i: number): CamView {
+		const live = m?.drones[i];
+		const view: CamView = { scene: "standby", progress: 0, room: 0, heading: 0, scanning: false, luring: false, threat: false, rad: false };
+		if (!d.alive) return { ...view, scene: "static" };
+		if (m === null || live === undefined) return { ...view, scene: game.mode === "drydock" ? "bay" : "standby" };
+		const scene = SCENE[live.state];
+		return {
+			scene,
+			progress: live.gatherFor > 0 ? 1 - live.gather / live.gatherFor : 0,
+			room: live.node,
+			heading: live.dir,
+			scanning: live.mod === "MOTION" && m.motionCd > (live.mk2 ? 5 : 8) - 1.6,
+			luring: live.mod === "LURE" && m.lure !== null && m.lure.t > 0,
+			threat: this.#threatened(m, i),
+			rad: live.node !== m.dock && m.rooms[live.node]!.rad,
+		};
 	}
 
 	#cardText(game: Game): void {
