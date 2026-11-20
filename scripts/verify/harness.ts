@@ -52,7 +52,7 @@ export class Session extends JourneySession {
 	}
 }
 
-const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
+const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png" };
 
 /** Serves the built renderer under `/derelict-drone-ops/`, the path GitHub Pages gives it. */
 export async function serveBuild(): Promise<{ url: string; close: () => Promise<void> }> {

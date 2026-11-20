@@ -162,6 +162,15 @@ export async function browser(session: Session): Promise<void> {
 	try {
 		await session.launchWeb(site.url);
 		await session.check("The build opens from a Pages-style subpath, its assets found", async () => /2\s+NEW CAMPAIGN/.test(await session.log()));
+		const favicon = () =>
+			session.page.evaluate(async () => {
+				const link = document.querySelector<HTMLLinkElement>("link[rel=icon]");
+				if (link === null) return "no icon link";
+				const image = new Image();
+				image.src = link.href;
+				return image.decode().then(() => `${image.naturalWidth}px`, () => `${link.href} did not load`);
+			});
+		await session.check("The page shows the terminal icon as its favicon", async () => (await favicon()) === "64px", favicon);
 		await session.check("A browser has no app bridge, so saves go to local storage", async () => await session.page.evaluate(() => !("saves" in window)));
 		const fetched = () => session.page.evaluate(() => performance.getEntriesByType("resource").map((e) => e.name.split("/").pop()!.replace(/-[\w-]{8}\.js$/, "")));
 		const mainHoldsStory = () =>

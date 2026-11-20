@@ -4,6 +4,7 @@ import { app, BrowserWindow, Menu, shell } from "electron";
 import { serveSaves } from "../features/game/host/index.ts";
 
 const isMac = process.platform === "darwin";
+const ICON = join(import.meta.dirname, "..", "..", "resources", "icon.png");
 
 function open(): Promise<void> {
 	const window = new BrowserWindow({
@@ -13,6 +14,7 @@ function open(): Promise<void> {
 		minHeight: 620,
 		backgroundColor: "#080503",
 		title: "Derelict Drone Ops",
+		icon: ICON,
 		fullscreen: process.argv.includes("--fullscreen"),
 		autoHideMenuBar: true,
 		webPreferences: { preload: join(import.meta.dirname, "..", "preload", "index.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true },
@@ -36,6 +38,7 @@ Menu.setApplicationMenu(
 
 app.on("window-all-closed", () => app.quit());
 background("start", app.whenReady().then(() => {
+	if (isMac) app.dock?.setIcon(ICON);
 	serveSaves(join(app.getPath("userData"), "saves.json"));
 	return open();
 }));

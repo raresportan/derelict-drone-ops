@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bezel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a342b"/>
+      <stop offset="0.5" stop-color="#211d18"/>
+      <stop offset="1" stop-color="#110e0b"/>
+    </linearGradient>
+    <radialGradient id="tube" cx="0.5" cy="0.45" r="0.75">
+      <stop offset="0" stop-color="#2a1a02"/>
+      <stop offset="0.6" stop-color="#140c01"/>
+      <stop offset="1" stop-color="#050300"/>
+    </radialGradient>
+    <radialGradient id="glare" cx="0.3" cy="0.15" r="0.6">
+      <stop offset="0" stop-color="#FFD27A" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#FFD27A" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="bigglow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="22" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="scan" width="8" height="8" patternUnits="userSpaceOnUse">
+      <rect width="8" height="3" fill="#000" opacity="0.35"/>
+    </pattern>
+    <clipPath id="screen"><rect x="182" y="182" width="660" height="600" rx="70"/></clipPath>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bezel)"/>
+  <rect x="104" y="104" width="816" height="816" rx="182" fill="none" stroke="#5a5144" stroke-width="4" opacity="0.6"/>
+  <rect x="166" y="166" width="692" height="632" rx="84" fill="#060402" stroke="#000" stroke-width="6"/>
+  <g clip-path="url(#screen)">
+    <rect x="182" y="182" width="660" height="600" fill="url(#tube)"/>
+    <g fill="none" stroke="#6A4500" stroke-width="2" opacity="0.55">
+      <path d="M182 262H842M182 342H842M182 422H842M182 502H842M182 582H842M182 662H842"/>
+      <path d="M262 182V782M342 182V782M422 182V782M502 182V782M582 182V782M662 182V782M742 182V782"/>
+    </g>
+    <g filter="url(#glow)" fill="none" stroke="#FFB000" stroke-width="16" stroke-linejoin="round">
+      <rect x="250" y="262" width="230" height="200"/>
+      <rect x="560" y="262" width="210" height="300"/>
+      <rect x="250" y="530" width="230" height="150"/>
+      <path d="M480 362H560" stroke-width="12"/>
+      <path d="M365 462V530" stroke-width="12"/>
+    </g>
+    <g fill="#FF6A00" filter="url(#glow)">
+      <rect x="507" y="344" width="26" height="36"/>
+    </g>
+    <g filter="url(#bigglow)">
+      <path d="M365 318 L395 372 L365 360 L335 372 Z" fill="#FFD27A"/>
+    </g>
+    <g filter="url(#glow)">
+      <circle cx="665" cy="470" r="20" fill="none" stroke="#FF6A00" stroke-width="8"/>
+      <circle cx="665" cy="470" r="6" fill="#FF6A00"/>
+    </g>
+    <g filter="url(#glow)" fill="#FFB000">
+      <path d="M270 712 L300 732 L270 752" fill="none" stroke="#FFB000" stroke-width="12" stroke-linecap="square"/>
+      <rect x="322" y="740" width="44" height="14"/>
+    </g>
+    <rect x="182" y="182" width="660" height="600" fill="url(#scan)"/>
+    <rect x="182" y="182" width="660" height="600" fill="url(#glare)"/>
+  </g>
+  <rect x="300" y="836" width="300" height="22" rx="6" fill="#0c0a08" stroke="#4a4237" stroke-width="2"/>
+  <circle cx="780" cy="847" r="13" fill="#FFB000" filter="url(#glow)"/>
+</svg>

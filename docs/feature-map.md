@@ -51,6 +51,9 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ✅ browser › "Reaching the drydock saves the campaign in local storage"
   - ✅ browser › "After a reload the menu offers to continue"
   - ❌ runs in Electron's Chromium, not in Safari or Firefox; the live deploy itself is checked by hand.
+- **The icon.** An amber CRT tile with a drone on a schematic (resources/icon.svg) is the app's dock and window icon and the web page's favicon.
+  - ✅ browser › "The page shows the terminal icon as its favicon"
+  - ❌ the dock and window icon are checked by eye; no journey reads them.
 - **The story.** Powered terminals hold the crew's logs: 15 story logs in order by depth across the Surface, the Underworks and the Bore, and 30 crew logs. `read` puts a log in the archive, which outlasts every run; 4 on the menu lists and replays it.
   - ✅ tutorial › "Reading the training terminal prints Cyberdime's briefing"
   - ✅ tutorial › "The archive keeps the briefing the tutorial's terminal gave up"
