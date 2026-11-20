@@ -420,7 +420,7 @@ function descent(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame):
 	ctx.moveTo(w * 0.58, horizon + 6);
 	ctx.lineTo(w * 0.7 - 40, horizon + 4);
 	ctx.stroke();
-	const padY = horizon + Math.min(30, h * 0.07), padW = w * 0.12;
+	const padY = horizon + Math.min(30, h * 0.07), padW = w * 0.15;
 	ctx.strokeStyle = C.n;
 	ctx.lineWidth = 2;
 	ctx.beginPath();
@@ -433,13 +433,13 @@ function descent(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame):
 		for (const s of [-1, 1]) ctx.fillRect(w / 2 + s * padW - 3, padY - 3, 6, 6);
 		ctx.shadowBlur = 0;
 	}
-	const fall = ease(f.t / land), unit = (1 + fall * 0.7) * Math.max(1, Math.min(1.6, w / 800));
+	const fall = ease(f.t / land), unit = (1.3 + fall * 0.95) * Math.max(1, Math.min(1.6, w / 800));
 	const legs = ease((fall - 0.5) / 0.35), footY = 9 + 13 * legs;
 	const hx = w / 2, hy = h * 0.06 + fall * (padY - h * 0.06) - footY * unit;
 	const near = ease((fall - 0.35) / 0.65);
 	ctx.fillStyle = alpha(C.tube, 0.55 * near);
 	ctx.beginPath();
-	ctx.ellipse(hx, padY, 34 * unit * (0.4 + near * 0.6), 6 * unit * (0.4 + near * 0.6), 0, 0, 7);
+	ctx.ellipse(hx, padY, 54 * unit * (0.4 + near * 0.6), 6 * unit * (0.4 + near * 0.6), 0, 0, 7);
 	ctx.fill();
 	if (!landed && fall > 0.25) {
 		const cone = ctx.createLinearGradient(0, hy + 8 * unit, 0, padY);
@@ -447,10 +447,10 @@ function descent(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame):
 		cone.addColorStop(1, alpha(C.hi, 0));
 		ctx.fillStyle = cone;
 		ctx.beginPath();
-		ctx.moveTo(hx - 6 * unit, hy + 8 * unit);
-		ctx.lineTo(hx + 6 * unit, hy + 8 * unit);
-		ctx.lineTo(hx + 44 * unit, padY);
-		ctx.lineTo(hx - 44 * unit, padY);
+		ctx.moveTo(hx - 3 * unit, hy + 9 * unit);
+		ctx.lineTo(hx + 3 * unit, hy + 9 * unit);
+		ctx.lineTo(hx + 50 * unit, padY);
+		ctx.lineTo(hx - 50 * unit, padY);
 		ctx.closePath();
 		ctx.fill();
 	}
@@ -467,24 +467,55 @@ function descent(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame):
 			ctx.fillRect(x, y, 2.5, 2.5);
 		}
 	}
+	ctx.lineWidth = 1;
+	for (let i = 0; i < 70; i++) {
+		const sx = (((hash(i + 40) + f.at * (0.18 + hash(i + 41) * 0.2)) % 1) + 1) % 1, sy = (((hash(i + 42) + f.at * 0.05) % 1) + 1) % 1;
+		ctx.strokeStyle = alpha(C.hi, 0.12 + hash(i + 43) * 0.25);
+		ctx.beginPath();
+		ctx.moveTo(sx * w, sy * h);
+		ctx.lineTo(sx * w - 10, sy * h - 2);
+		ctx.stroke();
+	}
 	ctx.restore();
 	const label = Math.max(11, Math.min(14, w / 70));
 	text(ctx, `ALT ${String(Math.max(0, Math.round((1 - fall) * 2400))).padStart(4, "0")} M`, 18, 22, C.hi, label, "left", 4);
 	text(ctx, landed ? "CONTACT · ENGINES SAFE" : `V/S −${Math.round((1 - fall) * 38 + 2)} M/S`, 18, 22 + label * 1.6, landed ? C.n : C.mid, label, "left", 4);
 }
 
-/** The hopper: hull, cockpit, engine pods, drone bay and legs, outlined in phosphor; `thrust` 0 means engines off. */
+/**
+ * The dropship, side on with its nose to the left: an armoured wedge of a hull with a slit cockpit, a tail fin, a striped
+ * VTOL nacelle, hydraulic landing struts and running lights. It noses up a little until the struts are down; `thrust` 0
+ * means engines off.
+ */
 function lander(ctx: CanvasRenderingContext2D, x: number, y: number, u: number, legs: number, thrust: number, at: number): void {
-	const P = (dx: number, dy: number): [number, number] => [x + dx * u, y + dy * u];
+	const P = (dx: number, dy: number): [number, number] => [dx * u, dy * u];
 	const path = (points: [number, number][], close = true) => {
 		ctx.beginPath();
-		points.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)));
+		points.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(...P(px, py)) : ctx.lineTo(...P(px, py))));
 		if (close) ctx.closePath();
 	};
+	const shape = (points: [number, number][], fill: string, glow = 0) => {
+		path(points);
+		ctx.fillStyle = fill;
+		ctx.fill();
+		ctx.shadowColor = C.hi;
+		ctx.shadowBlur = glow;
+		ctx.stroke();
+		ctx.shadowBlur = 0;
+	};
+	const line = (points: [number, number][], colour: string) => {
+		ctx.strokeStyle = colour;
+		path(points, false);
+		ctx.stroke();
+		ctx.strokeStyle = C.hi;
+	};
+	ctx.save();
+	ctx.translate(x, y);
+	ctx.rotate(-0.06 * (1 - legs));
 	if (thrust > 0) {
 		const flicker = 0.75 + hash(Math.floor(at * 30)) * 0.5;
-		for (const [dx, len, wide] of [[0, 30, 6], [-17, 14, 3], [17, 14, 3]] as const) {
-			const [fx, fy] = P(dx, 9), flame = ctx.createLinearGradient(0, fy, 0, fy + len * u * thrust * flicker);
+		for (const [dx, dy, len, wide] of [[15, 11, 36, 5], [-30, 9, 12, 2], [36, 7.5, 12, 2]] as const) {
+			const [fx, fy] = P(dx, dy), reach = len * u * thrust * flicker, flame = ctx.createLinearGradient(0, fy, 0, fy + reach);
 			flame.addColorStop(0, C.hi);
 			flame.addColorStop(0.35, C.hot);
 			flame.addColorStop(1, alpha(C.hot, 0));
@@ -492,62 +523,74 @@ function lander(ctx: CanvasRenderingContext2D, x: number, y: number, u: number, 
 			ctx.beginPath();
 			ctx.moveTo(fx - wide * u, fy);
 			ctx.lineTo(fx + wide * u, fy);
-			ctx.lineTo(fx, fy + len * u * thrust * flicker);
+			ctx.lineTo(fx, fy + reach);
 			ctx.closePath();
 			ctx.fill();
 		}
 	}
-	ctx.lineWidth = Math.max(1.2, 1.4 * u);
+	ctx.lineWidth = Math.max(1.1, 1.2 * u);
 	ctx.strokeStyle = C.hi;
-	for (const side of [-1, 1]) {
-		const hip = P(side * 11, 6), knee = P(side * (13 + 9 * legs), 6 + 8 * legs), foot = P(side * (14 + 12 * legs), 9 + 13 * legs);
-		path([hip, knee, foot], false);
-		ctx.stroke();
-		path([P(side * (10 + 12 * legs), 9 + 13 * legs), P(side * (18 + 12 * legs), 9 + 13 * legs)], false);
-		ctx.stroke();
+	const foot = 9 + 13 * legs;
+	for (const gx of [-24, 28]) {
+		shape([[gx - 1.6, 8], [gx + 1.6, 8], [gx + 1.6, 8 + 7 * legs], [gx - 1.6, 8 + 7 * legs]], C.tube);
+		line([[gx, 8 + 7 * legs], [gx, foot - 1.5]], C.hi);
+		line([[gx + 7, 8.5], [gx + 1.6, 8 + 8 * legs]], alpha(C.hi, 0.7));
+		shape([[gx - 5, foot - 1.5], [gx + 5, foot - 1.5], [gx + 6, foot], [gx - 6, foot]], C.tube);
 	}
-	const hull: [number, number][] = [P(-15, 9), P(15, 9), P(18, 2), P(12, -8), P(-12, -8), P(-18, 2)];
-	ctx.fillStyle = C.tube;
+	shape([[24, -11], [36, -23], [43, -23], [41, -9]], C.tube, 8);
+	shape([[-6, -14], [18, -14], [20, -11], [-8, -11]], C.tube);
+	for (const [gx, gw, gh] of [[-4, 3, 2], [1, 5, 1.4], [13, 4, 1.4]] as const) shape([[gx, -14 - gh], [gx + gw, -14 - gh], [gx + gw, -14], [gx, -14]], C.tube);
+	line([[10, -14], [10, -20]], C.hi);
+	line([[8.5, -18], [11.5, -18]], C.hi);
+	const hull: [number, number][] = [[-47, 3], [-42, -2], [-30, -8], [-12, -11], [22, -11], [34, -8], [44, -6], [47, 0], [42, 6], [30, 9], [-30, 9], [-40, 7]];
+	shape(hull, C.tube, 12);
+	ctx.save();
 	path(hull);
-	ctx.fill();
-	ctx.shadowColor = C.hi;
+	ctx.clip();
+	ctx.fillStyle = alpha(C.dim, 0.35);
+	ctx.fillRect(...P(-50, 3), 100 * u, 8 * u);
+	ctx.restore();
+	line([[-44, 3], [44, 3]], alpha(C.mid, 0.7));
+	for (const sx of [-22, -2]) line([[sx, sx === -22 ? -9.5 : -11], [sx, 9]], alpha(C.mid, 0.7));
+	line([[34, -8], [38, 3]], alpha(C.mid, 0.7));
+	shape([[-43, -0.5], [-31.5, -6.6], [-25, -7.4], [-27, -3.6], [-38.5, 0.9]], alpha(C.hi, 0.45));
+	for (const k of [0.33, 0.66]) line([[-43 + 18 * k, -0.5 - 6.9 * k], [-38.5 + 11.5 * k, 0.9 - 4.5 * k]], C.tube);
+	shape([[-33, 9], [-27, 9], [-27.5, 10.5], [-32.5, 10.5]], C.tube);
+	for (let i = 0; i < 4; i++) {
+		ctx.fillStyle = alpha(C.n, 0.5 + 0.4 * hash(i + Math.floor(at * 0.7)));
+		ctx.fillRect(...P(-19 + i * 4, -6), 2 * u, 1.6 * u);
+	}
+	const pod: [number, number][] = [[6, -7], [26, -7], [29, -3], [29, 4], [26, 6], [6, 6], [3, 3], [3, -4]];
+	shape(pod, C.tube, 6);
+	ctx.save();
+	path(pod);
+	ctx.clip();
+	ctx.lineWidth = 1.6 * u;
+	for (let i = -2; i < 6; i++) line([[2 + i * 2.6, 7], [8 + i * 2.6, -8]], alpha(C.hot, 0.7));
+	ctx.restore();
+	ctx.lineWidth = Math.max(1.1, 1.2 * u);
+	line([[10, -7], [10, 6]], C.hi);
+	for (const gx of [21, 23, 25]) line([[gx, -4], [gx, 3]], alpha(C.mid, 0.8));
+	shape([[10, 6], [20, 6], [21.5, 11], [8.5, 11]], C.tube);
+	line([[9.5, 8.5], [20.5, 8.5]], alpha(C.mid, 0.8));
+	if (u * 2.6 >= 5) {
+		ctx.font = `bold ${2.6 * u}px ${FONT}`;
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.fillStyle = alpha(C.n, 0.75);
+		ctx.fillText("HMT·CORVID", ...P(-12, 6));
+	}
+	const blink = Math.floor(at * 2.2) % 2, strobe = Math.floor(at * 6) % 5 === 0;
 	ctx.shadowBlur = 12;
-	ctx.stroke();
-	ctx.shadowBlur = 0;
-	for (const side of [-1, 1]) {
-		path([P(side * 18, -1), P(side * 23, -1), P(side * 23, 8), P(side * 18, 8)]);
-		ctx.fillStyle = C.tube;
-		ctx.fill();
-		ctx.stroke();
-		path([P(side * 19.5, 8), P(side * 21.5, 8), P(side * 22, 10), P(side * 19, 10)]);
-		ctx.stroke();
-	}
-	ctx.beginPath();
-	ctx.ellipse(...P(0, -8), 8 * u, 6 * u, 0, Math.PI, 0);
-	ctx.fillStyle = C.tube;
-	ctx.fill();
-	ctx.stroke();
-	ctx.fillStyle = alpha(C.hi, 0.55);
-	ctx.beginPath();
-	ctx.ellipse(...P(2, -9.5), 4.5 * u, 2.6 * u, 0, Math.PI, 0);
-	ctx.fill();
-	for (let i = 0; i < 3; i++) {
-		const [bx, by] = P(-9 + i * 7, 1);
-		ctx.fillStyle = alpha(C.n, 0.8);
-		ctx.fillRect(bx - 2 * u, by - 2 * u, 4 * u, 4 * u);
-	}
-	path([P(0, -14), P(0, -21)], false);
-	ctx.stroke();
-	const blink = Math.floor(at * 2.2) % 2;
-	ctx.shadowBlur = 10;
-	ctx.fillStyle = blink ? C.hot : alpha(C.hot, 0.25);
+	ctx.fillStyle = blink ? C.hot : alpha(C.hot, 0.2);
 	ctx.shadowColor = C.hot;
-	ctx.fillRect(...P(-0.8, -22.5), 2.4 * u, 2.4 * u);
-	ctx.fillStyle = blink ? alpha(C.hi, 0.3) : C.hi;
+	ctx.fillRect(...P(40, -24.5), 2.6 * u, 2.6 * u);
+	ctx.fillStyle = strobe ? C.hi : alpha(C.hi, 0.25);
 	ctx.shadowColor = C.hi;
-	ctx.fillRect(...P(-24, 2), 2 * u, 2 * u);
-	ctx.fillRect(...P(22, 2), 2 * u, 2 * u);
+	ctx.fillRect(...P(-48.5, 1.8), 2.2 * u, 2.2 * u);
+	ctx.fillRect(...P(-1, 9), 2.2 * u, 1.4 * u);
 	ctx.shadowBlur = 0;
+	ctx.restore();
 }
 
 /** Draws one frame of the intro. Loaded only when the intro or the ending is shown. */
