@@ -1,6 +1,6 @@
 # Derelict Drone Ops
 
-A salvage game on an amber CRT terminal. Forty-one days ago Cyberdime Mining Co.'s complex on Lacuna, an ice moon, went silent after a garbled SOS. You're the contractor sent to recover company assets and find out why: a hopper, three drones, and a command line.
+A salvage game on an amber CRT terminal. Cyberdime Mining Co.'s complex on Lacuna, an ice moon, went silent 412 days ago after a garbled SOS. You're the contractor sent to recover company assets and find out why: a hopper, three drones, and a command line.
 
 **Play in your browser:** https://raresportan.github.io/derelict-drone-ops/
 

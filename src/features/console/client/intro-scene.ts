@@ -272,7 +272,7 @@ function moon(ctx: CanvasRenderingContext2D, w: number, h: number, f: Frame): vo
 		ctx.lineTo(mx - mr - size * 0.6, ty);
 		ctx.stroke();
 		text(ctx, "LACUNA COMPLEX", mx - mr - size, ty - size * 0.7, C.hot, size, "right");
-		text(ctx, "NO CARRIER · 41 DAYS", mx - mr - size, ty + size * 0.8, C.mid, size * 0.85, "right", 3);
+		text(ctx, "NO CARRIER · 412 DAYS", mx - mr - size, ty + size * 0.8, C.mid, size * 0.85, "right", 3);
 	}
 }
 
