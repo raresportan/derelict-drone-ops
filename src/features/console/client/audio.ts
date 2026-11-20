@@ -3,8 +3,8 @@ import { SOS_MARKS } from "./sos.ts";
 
 export type Loop = "ambient" | "servo" | "grind" | "crackle";
 
-const LOOP_VOLUME: Record<Loop, number> = { ambient: 0.05, servo: 0.02, grind: 0.04, crackle: 0.045 };
-const LOOP_SPACE: Record<Loop, number> = { ambient: 0.3, servo: 0.25, grind: 0.35, crackle: 0.15 };
+const LOOP_VOLUME: Record<Loop, number> = { ambient: 0.05, servo: 0.02, grind: 0.04, crackle: 0.06 };
+const LOOP_SPACE: Record<Loop, number> = { ambient: 0.3, servo: 0.25, grind: 0.35, crackle: 0.04 };
 
 /** The shape of one sound layer: when it starts, how it swells, holds and dies, and how much of the hull's echo it gets. */
 interface Shape {
@@ -248,11 +248,13 @@ export class Beeper {
 			wobble(ring.gain, 2.2, 0.3, "square");
 			noise("bandpass", 1900, 14).connect(level(3)).connect(ring).connect(out);
 		} else {
-			const pops = level(0.55);
-			wobble(pops.gain, 17, 0.45, "square");
-			wobble(pops.gain, 6.3, 0.3, "sawtooth");
-			noise("highpass", 2200).connect(pops).connect(out);
-			noise("bandpass", 700, 0.8).connect(out);
+			const snow = ac.createBiquadFilter();
+			snow.type = "lowpass";
+			snow.frequency.value = 7500;
+			noise("highpass", 250, 0.5).connect(snow).connect(out);
+			const sheen = level(0.25);
+			wobble(sheen.gain, 0.7, 0.08);
+			noise("bandpass", 3200, 0.6).connect(sheen).connect(out);
 		}
 		return out;
 	}
