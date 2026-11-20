@@ -37,22 +37,30 @@ const progressShown = (session: Session, card: number) =>
 export async function tutorial(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("1");
-	await session.check("The tutorial starts at its first step", async () => (await session.text("#tut")).startsWith("ORIENTATION 1/12"));
-	for (let step = 1; step < 8; step++) {
-		const hint = await session.text("#tut");
-		await session.type(askedCommand(hint));
-		if (askedCommand(hint).startsWith("gather")) await session.check("A gathering drone's cam shows the job's progress bar filling", () => progressShown(session, 1), () => session.page.locator("#cards em").allInnerTexts().then((s) => s.join(", ")));
-		await session.check(`Doing step ${step} moves on to step ${step + 1}`, async () => (await session.text("#tut")).startsWith(`ORIENTATION ${step + 1}/12`), () => session.text("#tut"));
+	await session.check("The tutorial starts at its first step", async () => (await session.text("#tut")).startsWith("ORIENTATION 1/16"));
+	for (let step = 1; step < 12; step++) {
+		const hint = await session.text("#tut"), asked = askedCommand(hint);
+		const advanced = async () => (await session.text("#tut")).startsWith(`ORIENTATION ${step + 1}/16`);
+		await session.type(asked);
+		if (asked.startsWith("gather")) await session.check("A gathering drone's cam shows the job's progress bar filling", () => progressShown(session, 1), () => session.page.locator("#cards em").allInnerTexts().then((s) => s.join(", ")));
+		const valve = /purge (r\d+)/.exec(asked)?.[1];
+		for (let tries = 0; valve !== undefined && tries < 10 && !(await advanced()); tries++) {
+			await session.wait(2500);
+			if (!(await advanced())) await session.type(`purge ${valve}`);
+		}
+		await session.until(advanced, `orientation step ${step + 1}`, 40_000).catch(() => undefined);
+		await session.check(`Doing step ${step} moves on to step ${step + 1}`, advanced, () => session.text("#tut"));
 	}
+	await session.check("The decoy drew the lifeform into the valve room, and the purge killed it", async () => /PURGE r\d+: 1 biological signature neutralised/.test(await session.log()), () => session.log());
 	await session.check("Reading the training terminal prints Cyberdime's briefing", async () => /H-00 · CONTRACTOR BRIEFING/.test(await session.log()), () => session.log());
 	await session.shot("tutorial-last-step");
 	await session.type("nav all dock");
 	await session.check("All three drones come home", async () => (await session.page.locator("#cards em", { hasText: "DOCKED" }).count()) === 3);
 	await session.type("undock");
-	await session.check("Undocking the hulk opens the simulated drydock at step 9", async () => (await session.text("#tut")).startsWith("ORIENTATION 9/12") && /SIMULATED DRYDOCK/.test(await session.text("#mapSub")), () => session.text("#tut"));
-	for (let step = 9; step < 12; step++) {
+	await session.check("Undocking the hulk opens the simulated drydock at step 13", async () => (await session.text("#tut")).startsWith("ORIENTATION 13/16") && /SIMULATED DRYDOCK/.test(await session.text("#mapSub")), () => session.text("#tut"));
+	for (let step = 13; step < 16; step++) {
 		await session.type(askedCommand(await session.text("#tut")));
-		await session.check(`Drydock step ${step} moves on to step ${step + 1}`, async () => (await session.text("#tut")).startsWith(`ORIENTATION ${step + 1}/12`), () => session.text("#tut"));
+		await session.check(`Drydock step ${step} moves on to step ${step + 1}`, async () => (await session.text("#tut")).startsWith(`ORIENTATION ${step + 1}/16`), () => session.text("#tut"));
 	}
 	await session.check("The drydock lesson bought MOTH's MK2 and a spare fuel cell", async () => /MOTH mk2/i.test(await session.log()) && /Fuel cell bought/.test(await session.log()), () => session.log());
 	await session.shot("orientation-drydock");
@@ -77,11 +85,11 @@ const redOnMap = (session: Session) =>
 export async function fight(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("1");
-	await session.until(async () => (await session.text("#tut")).startsWith("ORIENTATION 1/12"), "the tutorial's first step");
+	await session.until(async () => (await session.text("#tut")).startsWith("ORIENTATION 1/16"), "the tutorial's first step");
 	for (let step = 1; step < 8; step++) {
 		const hint = await session.text("#tut");
 		await session.type(askedCommand(hint));
-		await session.until(async () => (await session.text("#tut")).startsWith(`ORIENTATION ${step + 1}/12`), `tutorial step ${step + 1}`);
+		await session.until(async () => (await session.text("#tut")).startsWith(`ORIENTATION ${step + 1}/16`), `tutorial step ${step + 1}`);
 	}
 	const lair = /sleeps in (r\d+)/.exec(await session.text("#tut"))?.[1];
 	await session.check("The training hulk names the lifeform's lair", lair !== undefined, await session.text("#tut"));

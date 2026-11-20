@@ -8,11 +8,12 @@ Everything the game does, how a player reaches it, and what verifies it.
 - **A screen that fits.** The schematic fills its window once the tube has warmed up, and every control can be clicked where it's drawn.
   - ✅ boots › "The map fills its window, measured after the warm-up"
   - ✅ boots › "Every control can be clicked where it's drawn"
-- **Terminal orientation.** Type 1; the SCT-7 operator manual on a simulated hulk, where a highlighted line gives one order at a time, and each step moves on once it's done. Undocking the hulk leads to a simulated drydock (status, an MK2 upgrade, a spare fuel cell), and hopping from there ends it and marks it done on the menu. Nothing bought there is saved.
+- **Terminal orientation.** Type 1; the SCT-7 operator manual on a simulated hulk, where a highlighted line gives one order at a time (moving, doors, the scan, gathering, reading, then luring the hulk's lifeform into a valve room and purging it), and each step moves on once it's done. Undocking the hulk leads to a simulated drydock (status, an MK2 upgrade, a spare fuel cell), and hopping from there ends it and marks it done on the menu. Nothing bought there is saved.
   - ✅ tutorial › "The tutorial starts at its first step"
   - ✅ tutorial › "Doing step ${step} moves on to step ${step + 1}"
   - ✅ tutorial › "All three drones come home"
-  - ✅ tutorial › "Undocking the hulk opens the simulated drydock at step 9"
+  - ✅ tutorial › "The decoy drew the lifeform into the valve room, and the purge killed it"
+  - ✅ tutorial › "Undocking the hulk opens the simulated drydock at step 13"
   - ✅ tutorial › "Drydock step ${step} moves on to step ${step + 1}"
   - ✅ tutorial › "The drydock lesson bought MOTH's MK2 and a spare fuel cell"
   - ✅ tutorial › "Hopping ends orientation and returns to the menu, marked done"

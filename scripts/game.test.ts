@@ -91,9 +91,14 @@ test("orientation walks through the hulk and a simulated drydock by doing what e
 	const tutorial = game.mission!.tutorial!;
 	for (let step = 0; step < tutorial.steps.length - 1; step++) {
 		assert.equal(tutorial.i, step);
+		const target = tutorial.steps[step]!.target, lifeform = game.mission!.creatures[0]!;
+		if (/purge/.test(tutorial.steps[step]!.text) && target !== null && "room" in target) {
+			for (let t = 0; t < 30 && lifeform.node !== target.room; t += 0.5) run(game, 0.5);
+			assert.equal(lifeform.node, target.room, "the decoy brings the lifeform into the valve room");
+		}
 		game.command(askedCommand(tutorial.steps[step]!.text));
-		run(game, 8);
-		assert.equal(tutorial.i, step + 1, `step ${step + 1} did not complete`);
+		for (let t = 0; t < 40 && tutorial.i === step; t += 0.5) run(game, 0.5);
+		assert.equal(tutorial.i, step + 1, `step ${step + 1} did not complete: ${tutorial.steps[step]!.text}`);
 	}
 	for (const part of askedCommand(tutorial.steps[tutorial.i]!.text).split("; ")) {
 		game.command(part);
@@ -333,6 +338,16 @@ test("drones can be renamed in a boarding or at the drydock, the name answers co
 	assert.equal(game.mode, "drydock");
 	game.command("rename moth ox-9");
 	assert.deepEqual(saves.campaign()!.drones.map((d) => d.name), ["KESTREL", "OX-9", "BUOY"], "the drydock saves the names");
+});
+
+test("in orientation a valve fired on an empty room recharges; in a contract it is spent", () => {
+	const { game, sink } = setup();
+	game.command("1");
+	const m = game.mission!, valve = m.rooms.findIndex((r, i) => r.purge && !m.creatures.some((c) => c.node === i));
+	m.rooms[valve]!.seen = true;
+	game.command(`purge r${m.rooms[valve]!.num}`);
+	assert.equal(m.rooms[valve]!.purgeUsed, false);
+	assert.ok(sink.saw(/Training valves recharge/));
 });
 
 test("a purge kills every lifeform in its room, once", () => {

@@ -136,6 +136,7 @@ function doors(h: MissionHost, want: boolean, args: string[]): void {
 		}
 		d.open = want;
 		d.bump = 1;
+		if (want) for (const c of m.creatures) if (c.alive && (c.node === d.a || c.node === d.b)) c.think = Math.min(c.think, 0.4);
 		moved = true;
 		sink.log(`${d.name} ${want ? "opened" : "closed"}.`, "ok");
 	}
@@ -249,7 +250,7 @@ function lure(h: MissionHost): void {
 		sink.log("Decoy already sounding.", "warn");
 		return;
 	}
-	const seconds = d.mk2 ? 14 : 8;
+	const seconds = m.tutorial !== null ? 24 : d.mk2 ? 14 : 8;
 	m.lure = { node: d.node, x: d.x, y: d.y, t: seconds, reach: d.mk2 ? 8 : 5 };
 	for (const c of m.creatures) c.think = Math.min(c.think, 0.3 + rng() * 0.6);
 	sink.log(`BUOY emitting decoy noise in ${nodeName(m, d.node)} for ${seconds} s.`, "drone");
@@ -283,6 +284,10 @@ function purge(h: MissionHost, args: string[]): void {
 	for (const c of killed) c.alive = false;
 	m.suspect.delete(i);
 	sink.log(`PURGE r${r.num}: ${killed.length} biological signature${killed.length === 1 ? "" : "s"} neutralised.`, killed.length ? "ok" : "note");
+	if (m.tutorial !== null && killed.length === 0) {
+		r.purgeUsed = false;
+		sink.log("The room was empty. Training valves recharge; in a real hulk that valve would be spent. Wait for the lifeform to arrive.", "warn");
+	}
 	for (const d of m.drones.filter((x) => x.alive && x.node === i)) killDrone(m, d, "caught in the purge", sink);
 }
 
