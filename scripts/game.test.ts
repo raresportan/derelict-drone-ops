@@ -85,7 +85,7 @@ function run(game: Game, seconds: number): void {
 	for (let t = 0; t < seconds; t += 0.05) game.tick(0.05);
 }
 
-test("the tutorial walks through all seven steps by doing what each one asks", () => {
+test("orientation walks through the hulk and a simulated drydock by doing what each step asks", () => {
 	const { game, saves } = setup();
 	game.command("1");
 	const tutorial = game.mission!.tutorial!;
@@ -99,9 +99,24 @@ test("the tutorial walks through all seven steps by doing what each one asks", (
 		game.command(part);
 		run(game, 8);
 	}
-	run(game, CAST_OFF.toMenu);
+	run(game, CAST_OFF.toDrydock + 0.1);
+	assert.equal(game.mode, "drydock");
+	assert.ok(game.drilling, "undocking the hulk opens the simulated drydock");
+	assert.equal(game.lesson?.step, tutorial.steps.length + 1);
+	const total = game.lesson!.total;
+	while (game.lesson !== null && game.lesson.step < total) {
+		const before: number = game.lesson.step;
+		game.command(askedCommand(game.lesson.text));
+		assert.equal(game.lesson?.step, before + 1, `drydock step ${before} did not complete`);
+	}
+	assert.equal(game.campaign!.drones[1]!.mk2, true, "the upgrade was bought");
+	assert.equal(game.campaign!.fuel, 2, "and the spare fuel cell");
+	game.command(askedCommand(game.lesson!.text));
+	run(game, CAST_OFF.toMenu + 0.1);
 	assert.equal(game.mode, "menu");
 	assert.equal(saves.done, true);
+	assert.equal(saves.writes, 0, "nothing from the simulated drydock was saved");
+	assert.equal(game.campaign, null, "and its lent contract is gone");
 });
 
 test("an empty-handed first boarding still reaches the drydock and is saved there", () => {

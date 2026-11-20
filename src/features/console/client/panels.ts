@@ -58,7 +58,7 @@ export class Panels {
 		const doc = this.#doc, m = game.mission;
 		const titles = { drydock: "[ DRYDOCK ]", mission: "[ SCHEMATIC ]", intro: "[ TRANSMISSION ]", ending: "[ CYBERDIME PRIORITY ]", menu: "[ SALVAGE-OS ]", over: "[ SALVAGE-OS ]" } as const;
 		el(doc, "mapTitle").textContent = titles[game.mode];
-		el(doc, "mapSub").textContent = m !== null ? (m.tutorial !== null ? m.ship : `${m.ship} · ${regionOf(m.site).name}`) : game.mode === "drydock" ? `AFTER SITE ${game.campaign?.jump ?? 0}` : game.mode === "intro" ? "CONTRACT 7731-K" : "LACUNA";
+		el(doc, "mapSub").textContent = m !== null ? (m.tutorial !== null ? m.ship : `${m.ship} · ${regionOf(m.site).name}`) : game.drilling ? "SIMULATED DRYDOCK" : game.mode === "drydock" ? `AFTER SITE ${game.campaign?.jump ?? 0}` : game.mode === "intro" ? "CONTRACT 7731-K" : "LACUNA";
 		el(doc, "maphint").style.visibility = game.mode === "mission" ? "visible" : "hidden";
 		(doc.querySelector(".legend") as HTMLElement).style.display = game.mode === "mission" ? "" : "none";
 	}
@@ -188,17 +188,17 @@ export class Panels {
 		el(doc, "hScrap").textContent = String(scrap);
 		el(doc, "hFuel").textContent = String(fuel);
 		el(doc, "hBlocks").textContent = bar(Math.min(fuel, 6) / 6, 6);
-		el(doc, "hJump").textContent = m?.tutorial ? "SIM" : inCampaign ? `${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}` : "—";
+		el(doc, "hJump").textContent = m?.tutorial || game.drilling ? "SIM" : inCampaign ? `${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}` : "—";
 		el(doc, "hDr").textContent = `${this.#drones(game).filter((d) => d.alive).length}/3`;
 		el(doc, "hTime").textContent = m === null ? "--:--" : `${String(Math.floor(m.t / 60)).padStart(2, "0")}:${String(Math.floor(m.t % 60)).padStart(2, "0")}`;
 		el(doc, "hShip").textContent = m !== null ? `SITE: ${m.ship}` : game.mode === "drydock" ? "DRYDOCK · IN TRANSIT" : game.mode === "intro" ? "INCOMING TRANSMISSION" : "LACUNA ORBIT";
-		el(doc, "hSeed").textContent = m !== null ? String(m.seed) : camp !== null && game.mode === "drydock" ? String(camp.seed) : "—";
+		el(doc, "hSeed").textContent = m !== null ? String(m.seed) : camp !== null && game.mode === "drydock" && !game.drilling ? String(camp.seed) : "—";
 		el(doc, "mapStat").textContent = m === null ? "—" : `${m.rooms.filter((r) => r.seen).length}/${m.rooms.length}`;
 
 		const big = el(doc, "mBig"), objective = el(doc, "mObj"), cargo = el(doc, "mCargo"), best = el(doc, "mBest");
-		if (m?.tutorial) {
+		if (m?.tutorial || game.drilling) {
 			big.textContent = "ORIENTATION";
-			objective.textContent = "Follow the highlighted orientation step. Hazards are simulated; nothing here is lost.";
+			objective.textContent = m?.tutorial ? "Follow the highlighted orientation step. Hazards are simulated; nothing here is lost." : "Follow the highlighted step. A simulated drydock: nothing bought here is kept.";
 		} else if (m !== null && camp !== null) {
 			big.textContent = `SITE ${camp.jump}`;
 			objective.textContent = `${regionOf(m.site).name}. Bring scrap and fuel into the dock, READ terminals, then UNDOCK. Fuel: ${camp.fuel}.`;
@@ -222,9 +222,9 @@ export class Panels {
 		const record = game.saves.best();
 		best.textContent = `${record === null ? "" : `Best: site ${record.jump} · ${record.scrap} scrap · `}Archive: ${game.saves.archive().length} logs`;
 
-		const tutorial = el(doc, "tut"), steps = m?.tutorial;
-		tutorial.hidden = steps === undefined || steps === null || m?.end !== null;
-		if (steps) tutorial.textContent = `ORIENTATION ${steps.i + 1}/${steps.steps.length} ▸ ${steps.steps[steps.i]!.text}`;
+		const tutorial = el(doc, "tut"), lesson = game.lesson;
+		tutorial.hidden = lesson === null;
+		if (lesson !== null) tutorial.textContent = `ORIENTATION ${lesson.step}/${lesson.total} ▸ ${lesson.text}`;
 
 		const alert = el(doc, "hAlert"), seen = m?.creatures.find((c) => c.alive && c.vis);
 		const [text, cls] =

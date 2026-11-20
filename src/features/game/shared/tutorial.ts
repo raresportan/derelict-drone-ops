@@ -1,7 +1,7 @@
 import type { Rng } from "./rng.ts";
 import { TUTORIAL_DIFFICULTY } from "./rules.ts";
 import { BRIEFING } from "./story.ts";
-import type { Ship, Tutorial } from "./types.ts";
+import type { Campaign, Ship, Tutorial } from "./types.ts";
 import { generate, newCreature, spotIn } from "./world.ts";
 
 /** The training hulk, stocked for the lesson, and the steps that walk through it. */
@@ -41,6 +41,23 @@ export function buildTutorial(rng: Rng): { ship: Ship; tutorial: Tutorial } {
 		return { ship, tutorial };
 	}
 }
+
+/** One step of orientation's simulated drydock: done once the contract shows it, or once the command it asks for has run. */
+export interface DrillStep {
+	text: string;
+	done: (camp: Campaign, cmd: string) => boolean;
+}
+
+/** Scrap the simulated drydock adds to what the hulk gave up, so every step can be paid for. */
+export const DRILL_CREDIT = 12;
+
+/** After the hulk, a simulated drydock: reading the fleet, an upgrade, fuel, and the hop that ends orientation. */
+export const DRILL: readonly DrillStep[] = [
+	{ text: "Simulated drydock. Between sites, scrap buys repairs, rebuilds and upgrades. Check the fleet:   status", done: (_, cmd) => cmd === "status" },
+	{ text: "MK2 improves a drone's own module: MOTH would gather 3× faster, with a free armour plate:   upgrade 2 mk2", done: (camp) => camp.drones[1]!.mk2 },
+	{ text: "Every hop burns a fuel cell. Dry tanks and no scrap to buy more end a contract. Buy a spare:   buy fuel", done: (camp) => camp.fuel > 1 },
+	{ text: "Upgrades and call signs stay with your drones from site to site. Fly on:   hop", done: () => false },
+];
 
 /** The commands a step asks for, as one line: the parts set off by three spaces, chained with `;`. */
 export const askedCommand = (text: string): string =>

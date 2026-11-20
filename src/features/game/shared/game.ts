@@ -7,7 +7,7 @@ import {
 	BRIEFING, type EndingText, FINAL_LOG, FINAL_SITE, type IntroScene, type IntroText, loadEnding, loadIntro, loadRegion, type Log, type RegionId, type RegionText,
 	REGIONS, regionOf, siteName,
 } from "./story.ts";
-import { buildTutorial } from "./tutorial.ts";
+import { buildTutorial, DRILL, DRILL_CREDIT } from "./tutorial.ts";
 import type { Campaign, Difficulty, Drone, DroneSpec, LogKind, Mission, Mode, Over, SaveStore, Ship, Sink, Tutorial } from "./types.ts";
 import { generate } from "./world.ts";
 
@@ -58,6 +58,7 @@ export class Game {
 	#introAt: { t: number; printed: number; cued: number; then: () => void } | null = null;
 	#ending: EndingText | null = null;
 	#chosen: "deliver" | "broadcast" | null = null;
+	#drill: { i: number; before: number } | null = null;
 
 	constructor(sink: Sink, saves: SaveStore, rng: Rng = Math.random) {
 		this.sink = sink;
@@ -80,6 +81,19 @@ export class Game {
 	 * Where the intro is while it plays: its scene, seconds into that scene (`t`) and into the whole intro (`at`), and
 	 * the title cards on screen, each with seconds since it appeared and until it goes.
 	 */
+	/** Whether orientation's simulated drydock is running, on a contract lent for the lesson. */
+	get drilling(): boolean {
+		return this.mode === "drydock" && this.#drill !== null;
+	}
+
+	/** The orientation step on screen, counted across the hulk and the drydock, or null outside orientation. */
+	get lesson(): { step: number; total: number; text: string } | null {
+		const t = this.mode === "mission" && this.mission?.end === null ? this.mission.tutorial : null;
+		if (t !== null) return { step: t.i + 1, total: t.steps.length + DRILL.length, text: t.steps[t.i]!.text };
+		const drill = this.drilling ? this.#drill : null;
+		return drill === null ? null : { step: drill.before + drill.i + 1, total: drill.before + DRILL.length, text: DRILL[drill.i]!.text };
+	}
+
 	get intro(): { scene: IntroScene; t: number; at: number; length: number; cards: { title: string; sub: string; t: number; left: number }[] } | null {
 		const at = this.#introAt, text = this.#intro;
 		if (this.mode !== "intro" || at === null || text === null) return null;
@@ -142,6 +156,8 @@ export class Game {
 	}
 
 	showMenu(): void {
+		if (this.#drill !== null) this.campaign = null;
+		this.#drill = null;
 		this.mission = null;
 		this.over = null;
 		this.#pending = null;
@@ -234,7 +250,8 @@ export class Game {
 		const m = this.mission, camp = this.campaign;
 		if (this.mode === "mission" && m !== null) {
 			missionCommand({ m, sink: this.sink, rng: this.rng, finish: () => this.#finish("undock"), leave: () => this.#leaveMission(), toggleLabels: () => (this.labels = !this.labels), renamed: (id, name) => this.#renamed(m, id, name) }, cmd, args, word);
-		} else if (this.mode === "drydock" && camp !== null) {
+		} else if (this.mode === "drydock" && camp !== null && this.#drill !== null) this.#drillCommand(camp, cmd, args);
+		else if (this.mode === "drydock" && camp !== null) {
 			drydockCommand({ camp, sink: this.sink, jump: () => this.#jump(), leave: () => this.showMenu(), save: () => this.saves.keepCampaign(camp) }, cmd, args);
 		} else if (this.mode === "ending" && camp !== null) this.#endingCommand(camp, cmd);
 		else this.#menuCommand(cmd);
@@ -319,6 +336,40 @@ export class Game {
 	#renamed(m: Mission, id: number, name: string): void {
 		const spec = m.tutorial === null ? this.campaign?.drones.find((d) => d.id === id) : undefined;
 		if (spec !== undefined) spec.name = name;
+	}
+
+	/** Orientation's simulated drydock: a contract lent for the lesson with the hulk's drones and scrap, never saved. */
+	#enterDrill(m: Mission): void {
+		const drones = m.drones.map(specOf).map((d) => (d.alive ? d : { ...d, alive: true, hull: 100 }));
+		this.campaign = { seed: 0, jump: 0, fuel: 1, scrap: m.bank.scrap + DRILL_CREDIT, drones, stats: { scrap: 0, rooms: 0, kills: 0 }, ended: false };
+		this.#drill = { i: 0, before: m.tutorial?.steps.length ?? 0 };
+		this.mission = null;
+		this.mode = "drydock";
+		this.sink.clear();
+		const typed = (text: string, kind: LogKind) => this.sink.log(text, kind, true);
+		typed("SIMULATED DRYDOCK · ORIENTATION. Nothing bought here carries into a real contract.", "head");
+		typed(`Scrap ${this.campaign.scrap} (${m.bank.scrap} recovered + ${DRILL_CREDIT} orientation credit) · fuel 1 · drones 3/3.`, "ok");
+		typed("Type HELP for every drydock command.", "note");
+	}
+
+	#drillCommand(camp: Campaign, cmd: string, args: string[]): void {
+		if (cmd === "menu") return this.showMenu();
+		if (cmd === "jump") return this.#endDrill();
+		drydockCommand({ camp, sink: this.sink, jump: () => this.#endDrill(), leave: () => this.showMenu(), save: () => {} }, cmd, args);
+		const drill = this.#drill, step = drill === null ? undefined : DRILL[drill.i];
+		if (drill !== null && step !== undefined && drill.i < DRILL.length - 1 && step.done(camp, cmd)) {
+			this.sink.log(`✓ ${step.text.split("   ")[0]}`, "ok");
+			this.sink.sound("ping");
+			drill.i++;
+		}
+	}
+
+	#endDrill(): void {
+		this.#drill = null;
+		this.campaign = null;
+		this.sink.log("Orientation complete. Lacuna is bigger, darker and less forgiving.", "loot");
+		this.sink.sound("jump");
+		this.#after(CAST_OFF.toMenu, () => this.showMenu());
 	}
 
 	#printLog(log: Log, fresh: boolean): void {
@@ -446,8 +497,13 @@ export class Game {
 		this.sink.log(`Recovered ${m.bank.scrap} scrap, ${m.bank.fuel} fuel · ${surveyed}/${m.rooms.length} rooms surveyed`, "head");
 		if (m.tutorial !== null) {
 			this.saves.finishTutorial();
-			this.sink.log(kind === "undock" ? "Orientation complete. Lacuna is bigger, darker and less forgiving." : "Training drones lost. That is the lesson: close doors behind you.", "loot");
-			this.#after(CAST_OFF.toMenu, () => this.showMenu());
+			if (kind === "undock") {
+				this.sink.log("Hulk cleared. One more stop: the drydock, where scrap becomes repairs, upgrades and fuel.", "loot");
+				this.#after(CAST_OFF.toDrydock, () => this.#enterDrill(m));
+			} else {
+				this.sink.log("Training drones lost. That is the lesson: close doors behind you.", "loot");
+				this.#after(CAST_OFF.toMenu, () => this.showMenu());
+			}
 			return;
 		}
 		const camp = this.campaign!;

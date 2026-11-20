@@ -557,7 +557,7 @@ export class Screens {
 		const line = (s: string, colour: string, size = f, blur = 6): void => {
 			this.#text(s, x0, y, colour, size, { align: "left", blur });
 		};
-		this.#inverse(`DRYDOCK · AFTER SITE ${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}`, x0, y, C.n, f * 1.25, "left");
+		this.#inverse(game.drilling ? "SIMULATED DRYDOCK · ORIENTATION" : `DRYDOCK · AFTER SITE ${camp.jump}${camp.jump <= FINAL_SITE ? `/${FINAL_SITE}` : ""}`, x0, y, C.n, f * 1.25, "left");
 		y += lh * 1.6;
 		line(`SCRAP ${String(camp.scrap).padStart(3)}     FUEL ${bar(Math.min(camp.fuel, 6) / 6, 6)} ${camp.fuel}`, C.hi);
 		y += lh * 1.4;
