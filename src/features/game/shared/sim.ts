@@ -169,6 +169,14 @@ function updateCreature(m: Mission, c: Creature, dt: number, sink: Sink, rng: Rn
 }
 
 /** Advances the boarding by `dt` seconds. Returns whether a lifeform is in sight. */
+/** How long a room stays suspected after a lifeform was last sensed there, unless a drone looks in first. */
+export const SUSPECT_SECONDS = 25;
+
+/** What the map knows about lifeforms in room `i`: one in sight now, or how fresh a suspicion is (1 just sensed, 0 none). */
+export function roomThreat(m: Mission, i: number): { seen: boolean; suspected: number } {
+	return { seen: m.creatures.some((c) => c.alive && c.vis && c.node === i), suspected: (m.suspect.get(i) ?? 0) / SUSPECT_SECONDS };
+}
+
 export function tickMission(m: Mission, dt: number, sink: Sink, rng: Rng): boolean {
 	if (m.end === null) m.t += dt;
 	for (const f of m.fx) f.t += dt;
@@ -191,8 +199,14 @@ export function tickMission(m: Mission, dt: number, sink: Sink, rng: Rng): boole
 			sink.log(` !! LIFEFORM DETECTED IN ${nodeName(m, c.node).toUpperCase()} `, "alarm");
 			sink.sound("alarm");
 		}
+		if (!seen && c.vis && c.alive) m.suspect.set(c.node, SUSPECT_SECONDS);
 		c.vis = seen;
 		threat ||= seen;
+	}
+	for (const [room, left] of m.suspect) {
+		const clear = watched.has(room) && !m.creatures.some((c) => c.alive && c.vis && c.node === room);
+		if (left <= dt || clear) m.suspect.delete(room);
+		else m.suspect.set(room, left - dt);
 	}
 	return threat;
 }

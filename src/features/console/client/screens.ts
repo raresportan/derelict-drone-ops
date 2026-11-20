@@ -1,4 +1,4 @@
-import { difficulty, type Drone, FINAL_SITE, type Game, MK2, type Mission, PRICE, ROLES, regionOf, type Room, siteName } from "../../game/shared/index.ts";
+import { difficulty, type Drone, FINAL_SITE, type Game, MK2, type Mission, PRICE, ROLES, regionOf, type Room, roomThreat, siteName } from "../../game/shared/index.ts";
 import { alpha, C } from "./palette.ts";
 
 const FONT = 'Menlo,Consolas,"Courier New",monospace';
@@ -170,7 +170,11 @@ export class Screens {
 	#room(m: Mission, r: Room, i: number, watched: Set<number>, labels: boolean): void {
 		const ctx = this.#ctx, S = this.#scale;
 		const x = this.#X(r.x + 0.5), y = this.#Y(r.y + 0.5), w = (r.w - 1) * S, h = (r.h - 1) * S, here = watched.has(i);
-		if (here) {
+		const threat = roomThreat(m, i), danger = threat.seen ? 1 : threat.suspected > 0 ? 0.25 + 0.35 * threat.suspected : 0;
+		if (danger > 0) {
+			ctx.fillStyle = alpha(C.red, threat.seen ? 0.2 + 0.08 * Math.sin(m.t * 6) : 0.03 + 0.07 * threat.suspected);
+			ctx.fillRect(x, y, w, h);
+		} else if (here) {
 			ctx.fillStyle = alpha(C.n, 0.06);
 			ctx.fillRect(x, y, w, h);
 		}
@@ -190,6 +194,13 @@ export class Screens {
 		ctx.lineWidth = here ? 2.2 : 1.6;
 		this.#glow(r.seen ? (here ? C.hi : C.n) : C.dim, here ? 14 : r.seen ? 7 : 3);
 		ctx.strokeRect(x, y, w, h);
+		if (danger > 0) {
+			ctx.lineWidth = threat.seen ? 2.4 : 1.8;
+			if (!threat.seen) ctx.setLineDash([6, 4]);
+			this.#glow(alpha(C.red, danger), threat.seen ? 16 : 8);
+			ctx.strokeRect(x, y, w, h);
+			ctx.setLineDash([]);
+		}
 		this.#plain();
 		if (!r.seen) return;
 		if (r.rad) {

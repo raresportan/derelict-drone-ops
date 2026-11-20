@@ -185,6 +185,7 @@ export interface Mission extends Ship {
 	fx: Fx[];
 	lure: Lure | null;
 	motionCd: number;
+	suspect: Map<number, number>;
 	end: "undock" | "lost" | null;
 	undockArm: boolean;
 	menuArm: boolean;

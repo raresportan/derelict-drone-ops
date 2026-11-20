@@ -7,6 +7,7 @@ export const C = {
 	mid: "#C88A08",
 	dim: "#6A4500",
 	hot: "#FF6A00",
+	red: "#FF2A14",
 	tube: "#0A0600",
 } as const;
 

@@ -1,5 +1,5 @@
 import type { Rng } from "./rng.ts";
-import { killDrone } from "./sim.ts";
+import { killDrone, SUSPECT_SECONDS } from "./sim.ts";
 import type { Drone, DroneSpec, LogKind, Mission, Sink } from "./types.ts";
 import { doorByName, findPath, nodeName, roomByNum, slot, toWaypoints } from "./world.ts";
 
@@ -221,7 +221,10 @@ function motion(h: MissionHost): void {
 	}
 	m.fx.push({ type: "scan", x: d.x, y: d.y, t: 0, max: 1.4, r: range });
 	const hits = m.creatures.filter((c) => c.alive && reach.has(c.node));
-	for (const c of hits) m.fx.push({ type: "blip", x: c.x, y: c.y, t: 0, max: 4 });
+	for (const c of hits) {
+		m.fx.push({ type: "blip", x: c.x, y: c.y, t: 0, max: 4 });
+		m.suspect.set(c.node, SUSPECT_SECONDS);
+	}
 	if (hits.length > 0) {
 		sink.log(`MOTION: ${hits.length} contact${hits.length > 1 ? "s" : ""} — ${[...new Set(hits.map((c) => nodeName(m, c.node)))].join(", ")}`, "warn");
 		sink.sound("alarm");
@@ -275,6 +278,7 @@ function purge(h: MissionHost, args: string[]): void {
 	sink.sound("boom");
 	const killed = m.creatures.filter((c) => c.alive && c.node === i);
 	for (const c of killed) c.alive = false;
+	m.suspect.delete(i);
 	sink.log(`PURGE r${r.num}: ${killed.length} biological signature${killed.length === 1 ? "" : "s"} neutralised.`, killed.length ? "ok" : "note");
 	for (const d of m.drones.filter((x) => x.alive && x.node === i)) killDrone(m, d, "caught in the purge", sink);
 }

@@ -58,6 +58,14 @@ const card = (session: Session, id: number) => session.page.locator("#cards .car
 const hullOf = async (session: Session, id: number): Promise<number> => Number.parseInt(await card(session, id).locator(".ln .a-b").innerText(), 10);
 const locationOf = async (session: Session, id: number): Promise<string> => (await card(session, id).locator(".ln.a-m span").first().innerText()).replace("LOC ", "");
 
+const redOnMap = (session: Session) =>
+	session.page.evaluate(() => {
+		const map = document.getElementById("map") as HTMLCanvasElement, px = map.getContext("2d")!.getImageData(0, 0, map.width, map.height).data;
+		let red = 0;
+		for (let i = 0; i < px.length; i += 4) if (px[i]! > 200 && px[i + 1]! > 25 && px[i + 1]! < 80 && px[i + 2]! < 70) red++;
+		return red;
+	});
+
 export async function fight(session: Session): Promise<void> {
 	await session.launch();
 	await session.type("1");
@@ -74,6 +82,7 @@ export async function fight(session: Session): Promise<void> {
 	const route = new RegExp(`no open route to ${lair} — closed on shortest route: ([d\\d ]+)\\.`).exec(await session.log())?.[1] ?? "";
 	await session.type(`open ${route}; nav 2 ${lair}`);
 	await session.check("A lifeform is detected once MOTH shares its room", async () => /!! LIFEFORM DETECTED IN R\d+/.test(await session.log()), () => session.log());
+	await session.check("The lair glows red on the map while MOTH sees the lifeform", async () => (await redOnMap(session)) > 30, async () => `${await redOnMap(session)} red pixels`);
 	await session.check("MOTH's feed and the status line raise the alarm", async () => (await card(session, 2).locator(".al").innerText()) === "!! LIFEFORM" && /LIFEFORM IN R\d+/.test(await session.text("#hAlert")));
 	let lastHull = Number.POSITIVE_INFINITY;
 	await session.check(
@@ -101,6 +110,7 @@ export async function fight(session: Session): Promise<void> {
 		async () => (await locationOf(session, 1)) === lair && (await sightings()) === before && /ALL CLEAR/.test(await session.text("#hAlert")),
 		async () => `WREN at ${await locationOf(session, 1)}, sightings ${await sightings()} (was ${before}), alert ${await session.text("#hAlert")}`,
 	);
+	await session.check("With the lair seen empty, no room stays red", async () => (await redOnMap(session)) < 5, async () => `${await redOnMap(session)} red pixels`);
 }
 
 export async function campaign(session: Session): Promise<void> {

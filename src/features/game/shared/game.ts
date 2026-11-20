@@ -355,7 +355,7 @@ export class Game {
 
 	#board(ship: Ship, o: Difficulty, specs: readonly DroneSpec[], name: string, site: number, tutorial: Tutorial | null): Mission {
 		const drones: Drone[] = specs.map((s) => ({ ...s, x: 0, y: 0, node: ship.dock, path: [], state: "DOCKED", cargo: 0, fuel: 0, gather: 0, gatherFor: 0, dir: 0, hit: 0, dest: null, wreck: false }));
-		const m: Mission = { ...ship, o, ship: name, site, reads: [], drones, bank: { scrap: 0, fuel: 0 }, t: 0, fx: [], lure: null, motionCd: 0, end: null, undockArm: false, menuArm: false, scanned: false, tutorial };
+		const m: Mission = { ...ship, o, ship: name, site, reads: [], drones, bank: { scrap: 0, fuel: 0 }, t: 0, fx: [], lure: null, motionCd: 0, suspect: new Map(), end: null, undockArm: false, menuArm: false, scanned: false, tutorial };
 		dockDrones(m);
 		this.mission = m;
 		this.#pending = null;

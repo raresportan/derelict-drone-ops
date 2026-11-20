@@ -1,7 +1,7 @@
 // The game's modes, rules and saves, played through commands on its own clock: run with npm test.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { askedCommand, type Best, type Campaign, CAST_OFF, DELIVERY_PAY, difficulty, FINAL_SITE, Game, type LogKind, PRICE, READ_SECONDS, type SaveStore, seeded, type Sink, type Sound, START_FUEL, type Typing } from "../src/features/game/shared/index.ts";
+import { askedCommand, type Best, type Campaign, CAST_OFF, DELIVERY_PAY, difficulty, FINAL_SITE, Game, type LogKind, PRICE, READ_SECONDS, roomThreat, type SaveStore, seeded, type Sink, type Sound, START_FUEL, SUSPECT_SECONDS, type Typing } from "../src/features/game/shared/index.ts";
 
 class Recorder implements Sink {
 	lines: { text: string; kind: LogKind; typed: Typing }[] = [];
@@ -216,6 +216,41 @@ test("a closed door stops a drone, and a door can't close on one", () => {
 	game.command(`close ${door.name}`);
 	assert.equal(door.open, true);
 	assert.ok(sink.saw(/obstructed/));
+});
+
+test("the map marks a room red while a lifeform is in sight, and suspected after a scan or once sight is lost", () => {
+	const { game } = setup();
+	game.command("2");
+	const m = game.mission!, room = m.start, centre = m.rooms[room]!, wren = m.drones[0]!;
+	const [lifeform, ...rest] = m.creatures;
+	for (const c of rest) c.alive = false;
+	Object.assign(lifeform!, { node: room, x: centre.cx, y: centre.cy, path: [] });
+	for (const d of m.doors) if (d.a === room || d.b === room) d.open = false;
+	const place = (node: number) => Object.assign(wren, { node, x: node === m.dock ? wren.x : centre.cx, y: node === m.dock ? wren.y : centre.cy, path: [], state: "IDLE" });
+	const home = { x: wren.x, y: wren.y };
+
+	game.command("motion");
+	assert.deepEqual(roomThreat(m, room), { seen: false, suspected: 1 });
+	run(game, 5);
+	const fading = roomThreat(m, room).suspected;
+	assert.ok(fading > 0.6 && fading < 0.9, `suspicion after 5 s: ${fading}`);
+
+	place(room);
+	game.tick(0.05);
+	assert.equal(roomThreat(m, room).seen, true);
+	Object.assign(wren, { node: m.dock, x: home.x, y: home.y });
+	game.tick(0.05);
+	assert.equal(roomThreat(m, room).seen, false);
+	assert.ok(roomThreat(m, room).suspected > 0.95, "losing sight leaves the room freshly suspected");
+	run(game, SUSPECT_SECONDS + 1);
+	assert.equal(roomThreat(m, room).suspected, 0, "suspicion runs out");
+
+	m.motionCd = 0;
+	game.command("motion");
+	lifeform!.alive = false;
+	place(room);
+	game.tick(0.05);
+	assert.deepEqual(roomThreat(m, room), { seen: false, suspected: 0 }, "a drone that looks in and finds nothing clears it");
 });
 
 test("a purge kills every lifeform in its room, once", () => {

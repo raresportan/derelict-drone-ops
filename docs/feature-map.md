@@ -24,13 +24,15 @@ Everything the game does, how a player reaches it, and what verifies it.
 - **Drone cams.** Each drone's card shows a live feed of what it's doing: a corridor rushing past while it moves, a slow pan when idle, the bay when docked, a claw on a crate while gathering and a scrolling terminal while reading (both with a progress bar), a striped door when blocked, WREN's scan sweep, BUOY's decoy rings, a lifeform's silhouette, and static when the drone is lost. Every working cam breaks up now and then: a few seconds of heavy static and torn lines, at random and on its own schedule.
   - ✅ tutorial › "A gathering drone's cam shows the job's progress bar filling"
   - ❌ the other scenes are checked by eye on screenshots; no journey reads their pixels. The interference's timing is unit tested (cam.test.ts), its look by eye.
-- **Lifeforms and hazards.** Lifeforms hunt drones through open doors, closed doors stop them, purge valves kill them, radiation wears hulls down.
+- **Lifeforms and hazards.** Lifeforms hunt drones through open doors, closed doors stop them, purge valves kill them, radiation wears hulls down. On the map a room with a lifeform in sight is red, and a room where one was sensed (a motion contact, or a lifeform that slipped out of sight) is reddish, fading over 25 seconds unless a drone looks in first.
   - ✅ fight › "The lair is shut off: no open route to it"
   - ✅ fight › "A lifeform is detected once MOTH shares its room"
+  - ✅ fight › "The lair glows red on the map while MOTH sees the lifeform"
   - ✅ fight › "MOTH's feed and the status line raise the alarm"
   - ✅ fight › "In the lair the lifeform wears MOTH's hull down"
   - ✅ fight › "Purging the lair kills the lifeform, and MOTH with it"
   - ✅ fight › "With MOTH gone the alarm clears"
+  - ✅ fight › "With the lair seen empty, no room stays red"
   - ✅ fight › "WREN, sent in after the purge, finds the lair empty"
   - ❌ radiation, the decoy and a lifeform stopped at a closed door are covered by unit tests only (game.test.ts covers doors; radiation and the decoy have none).
 - **Drydock and hops.** Undocking reaches the drydock, where scrap buys repairs, rebuilds, upgrades and fuel; HOP flies to the next, harder site.
