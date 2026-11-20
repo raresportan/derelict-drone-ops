@@ -14,7 +14,7 @@ const mapSize = (session: Session) =>
 
 export async function boots(session: Session): Promise<void> {
 	await session.launch();
-	await session.check("The title menu offers terminal orientation and a new campaign", async () => /1\s+TERMINAL ORIENTATION/.test(await session.log()) && /2\s+NEW CAMPAIGN/.test(await session.log()));
+	await session.check("The title menu offers terminal orientation and a new contract", async () => /1\s+TERMINAL ORIENTATION/.test(await session.log()) && /2\s+NEW CONTRACT/.test(await session.log()));
 	await session.check(
 		"The map fills its window, measured after the warm-up",
 		async () => {
@@ -128,9 +128,9 @@ export async function campaign(session: Session): Promise<void> {
 	await session.shot("drydock");
 	await session.close();
 	await session.launch();
-	await session.check("After a restart the menu offers to continue from site 1", async () => /3\s+CONTINUE\s+site 1/.test(await session.log()), () => session.log());
+	await session.check("After a restart the menu offers to continue from site 1", async () => /3\s+RESUME CONTRACT\s+site 1/.test(await session.log()), () => session.log());
 	await session.type("3");
-	await session.check("Continuing restores the drydock", async () => (await session.text("#mapTitle")) === "[ DRYDOCK ]" && /Campaign restored/.test(await session.log()));
+	await session.check("Continuing restores the drydock", async () => (await session.text("#mapTitle")) === "[ DRYDOCK ]" && /Contract resumed/.test(await session.log()));
 	await session.type("hop");
 	await session.check("Hopping flies to site 2", async () => (await session.text("#hJump")) === "2/21" && /LANDING PAD CONTROL/.test(await session.text("#mapSub")));
 }
@@ -165,8 +165,8 @@ export async function damagedSave(session: Session): Promise<void> {
 	writeFileSync(join(session.userData, "saves.json"), '{"campaign":{"seed":7,"jump":"three","drones":[{"id":1}]},"best":{"jump":4,"scrap":31},"tutorialDone":true}');
 	await session.launch();
 	await session.check("A damaged save still opens on the title menu, printed in full", async () => /Type a number \(or its name\) and press Enter\./.test(await session.log()));
-	await session.check("The damaged campaign isn't offered to continue", async () => !/3\s+CONTINUE/.test(await session.log()), () => session.log());
-	await session.check("What wasn't damaged is kept: the best run and the finished tutorial", async () => /Best run: site 4 reached/.test(await session.log()) && /\(completed\)/.test(await session.log()), () => session.log());
+	await session.check("The damaged campaign isn't offered to continue", async () => !/3\s+RESUME CONTRACT/.test(await session.log()), () => session.log());
+	await session.check("What wasn't damaged is kept: the best run and the finished tutorial", async () => /Furthest site reached: 4/.test(await session.log()) && /\(completed\)/.test(await session.log()), () => session.log());
 	await session.startCampaign();
 	await session.type("undock");
 	await session.check("The next save replaces the damaged file with a whole one", () => {
@@ -179,7 +179,7 @@ export async function browser(session: Session): Promise<void> {
 	const site = await serveBuild();
 	try {
 		await session.launchWeb(site.url);
-		await session.check("The build opens from a Pages-style subpath, its assets found", async () => /2\s+NEW CAMPAIGN/.test(await session.log()));
+		await session.check("The build opens from a Pages-style subpath, its assets found", async () => /2\s+NEW CONTRACT/.test(await session.log()));
 		const favicon = () =>
 			session.page.evaluate(async () => {
 				const link = document.querySelector<HTMLLinkElement>("link[rel=icon]");
@@ -211,7 +211,7 @@ export async function browser(session: Session): Promise<void> {
 		await session.check("Reaching the drydock saves the campaign in local storage", async () => (JSON.parse((await stored()) ?? "{}") as { campaign?: { jump?: number } }).campaign?.jump === 1, async () => String(await stored()));
 		await session.page.reload();
 		await session.page.locator("#out div").first().waitFor();
-		await session.check("After a reload the menu offers to continue", async () => /3\s+CONTINUE\s+site 1/.test(await session.log()), () => session.log());
+		await session.check("After a reload the menu offers to continue", async () => /3\s+RESUME CONTRACT\s+site 1/.test(await session.log()), () => session.log());
 		await session.shot("browser-menu");
 		await session.close();
 	} finally {

@@ -512,11 +512,11 @@ export class Screens {
 		const cell = Math.max(5, Math.min(W / 54, H / 18));
 		const bottom = this.#pixelWord("LACUNA", W / 2, H * 0.25, cell * 1.15, C.n);
 		const sub = Math.max(13, cell * 0.9), subY = bottom + sub * 1.6;
-		this.#inverse("D R O N E   O P S", W / 2, subY, C.n, sub);
+		this.#inverse("SALVAGE-OS · CONTRACT 7731-K", W / 2, subY, C.n, sub);
 		const f = Math.max(12, Math.min(17, W / 55));
 		let y = subY + f * 3;
 		const save = game.saves.campaign();
-		const options: [string, string][] = [["1", "TERMINAL ORIENTATION"], ["2", "NEW CAMPAIGN"], ...(save === null ? [] : [["3", `CONTINUE · SITE ${save.jump}`] as [string, string]]), ["4", `ARCHIVE · ${game.saves.archive().length} LOGS`], ["5", "MISSION DATA"]];
+		const options: [string, string][] = [["1", "TERMINAL ORIENTATION"], ["2", "NEW CONTRACT"], ...(save === null ? [] : [["3", `RESUME CONTRACT · SITE ${save.jump}`] as [string, string]]), ["4", `ARCHIVE · ${game.saves.archive().length} LOGS`], ["5", "MISSION DATA"]];
 		for (const [key, label] of options) {
 			this.#ctx.font = `${f}px ${FONT}`;
 			const left = W / 2 - this.#ctx.measureText(` ${key}  ${label}`).width / 2;
@@ -525,7 +525,7 @@ export class Screens {
 			y += f * 1.9;
 		}
 		const best = game.saves.best();
-		if (best !== null) this.#text(`BEST · SITE ${best.jump} · ${best.scrap} SCRAP`, W / 2, y + f * 0.8, C.mid, Math.max(11, f * 0.8), { blur: 4 });
+		if (best !== null) this.#text(`FURTHEST · SITE ${best.jump} · ${best.scrap} SCRAP`, W / 2, y + f * 0.8, C.mid, Math.max(11, f * 0.8), { blur: 4 });
 		if (Math.floor(now / 530) % 2) this.#text("_", W / 2, y + f * 2.4, C.hot, f, { blur: 10 });
 	}
 
@@ -591,11 +591,11 @@ export class Screens {
 	#over(game: Game): void {
 		this.#starfield(false);
 		const W = this.#w, H = this.#h, fs = Math.min(40, W / 18), o = game.over;
-		this.#inverse("CAMPAIGN OVER", W / 2, H * 0.36, C.hot, fs);
+		this.#inverse("CONTRACT TERMINATED", W / 2, H * 0.36, C.hot, fs);
 		if (o === null) return;
 		const f = Math.max(12, Math.min(16, W / 50)), y = H * 0.36 + fs * 1.5;
 		this.#text(o.reason, W / 2, y, C.hi, f, { blur: 8 });
-		this.#text(`SITE ${o.jump} · ${o.scrap} SCRAP · ${o.rooms} ROOMS · ${o.kills} KILLS`, W / 2, y + f * 2, C.n, f);
-		this.#text("TYPE CAMPAIGN TO TRY AGAIN", W / 2, y + f * 4.5, C.mid, f * 0.9, { blur: 4 });
+		this.#text(`SITE ${o.jump} · ${o.scrap} SCRAP · ${o.rooms} ROOMS · ${o.kills} LIFEFORMS`, W / 2, y + f * 2, C.n, f);
+		this.#text("TYPE CONTRACT TO SIGN A NEW ONE", W / 2, y + f * 4.5, C.mid, f * 0.9, { blur: 4 });
 	}
 }

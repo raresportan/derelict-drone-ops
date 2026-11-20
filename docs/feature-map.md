@@ -2,8 +2,8 @@
 
 Everything the game does, how a player reaches it, and what verifies it.
 
-- **Title menu.** The app opens on the LACUNA title screen, offering terminal orientation, a new campaign, the archive and the mission data, and a continue option once there's a save.
-  - ✅ boots › "The title menu offers terminal orientation and a new campaign"
+- **Title menu.** The app opens on the LACUNA title screen, offering terminal orientation, a new contract, the archive and the mission data, and the option to resume a contract once there's a save.
+  - ✅ boots › "The title menu offers terminal orientation and a new contract"
   - ✅ campaign › "After a restart the menu offers to continue from site 1"
 - **A screen that fits.** The schematic fills its window once the tube has warmed up, and every control can be clicked where it's drawn.
   - ✅ boots › "The map fills its window, measured after the warm-up"

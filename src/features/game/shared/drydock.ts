@@ -143,7 +143,7 @@ export function drydockCommand(h: DrydockHost, cmd: string, args: string[]): voi
 			h.jump();
 			return;
 		case "menu":
-			sink.log("Campaign saved.", "note");
+			sink.log("Contract log saved.", "note");
 			h.leave();
 			return;
 		default:

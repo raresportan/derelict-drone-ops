@@ -212,13 +212,13 @@ export class Panels {
 			big.textContent = "THE BORE ✓";
 			objective.textContent = "DELIVER the canisters to Cyberdime, or BROADCAST the crew's logs.";
 		} else if (game.mode === "over") {
-			big.textContent = "GAME OVER";
-			objective.textContent = "Type CAMPAIGN to start a new run.";
+			big.textContent = "TERMINATED";
+			objective.textContent = "Type CONTRACT to sign a new contract.";
 		} else {
 			big.textContent = "STANDBY";
-			objective.textContent = "Choose 1 ORIENTATION, 2 NEW CAMPAIGN or 3 CONTINUE.";
+			objective.textContent = "Choose 1 ORIENTATION, 2 NEW CONTRACT or 3 RESUME.";
 		}
-		cargo.textContent = m !== null ? `Boarding: +${m.bank.scrap} scrap, +${m.bank.fuel} fuel · aboard drones ${m.drones.reduce((s, d) => s + d.cargo, 0)}` : inCampaign ? `Totals: ${camp.stats.scrap} scrap salvaged · ${camp.stats.kills} kills` : "";
+		cargo.textContent = m !== null ? `Boarding: +${m.bank.scrap} scrap, +${m.bank.fuel} fuel · aboard drones ${m.drones.reduce((s, d) => s + d.cargo, 0)}` : inCampaign ? `Totals: ${camp.stats.scrap} scrap salvaged · ${camp.stats.kills} lifeforms neutralised` : "";
 		const record = game.saves.best();
 		best.textContent = `${record === null ? "" : `Best: site ${record.jump} · ${record.scrap} scrap · `}Archive: ${game.saves.archive().length} logs`;
 
@@ -229,7 +229,7 @@ export class Panels {
 		const alert = el(doc, "hAlert"), seen = m?.creatures.find((c) => c.alive && c.vis);
 		const [text, cls] =
 			m === null
-				? [game.mode === "drydock" ? "IN TRANSIT · DRYDOCK" : game.mode === "over" ? " CAMPAIGN OVER " : game.mode === "intro" ? " INCOMING · PRIORITY " : game.mode === "ending" ? " CYBERDIME ON THE LINE " : "AWAITING ORDERS", game.mode === "over" || game.mode === "intro" || game.mode === "ending" ? "a-H" : "a-m"]
+				? [game.mode === "drydock" ? "IN TRANSIT · DRYDOCK" : game.mode === "over" ? " CONTRACT TERMINATED " : game.mode === "intro" ? " INCOMING · PRIORITY " : game.mode === "ending" ? " CYBERDIME ON THE LINE " : "AWAITING ORDERS", game.mode === "over" || game.mode === "intro" || game.mode === "ending" ? "a-H" : "a-m"]
 				: m.end !== null
 					? [" CASTING OFF ", "a-i"]
 					: seen !== undefined
