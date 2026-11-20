@@ -578,7 +578,7 @@ function lander(ctx: CanvasRenderingContext2D, x: number, y: number, u: number, 
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
 		ctx.fillStyle = alpha(C.n, 0.75);
-		ctx.fillText("HMT·CORVID", ...P(-12, 6));
+		ctx.fillText("HMT·OTAGO", ...P(-12, 6));
 	}
 	const blink = Math.floor(at * 2.2) % 2, strobe = Math.floor(at * 6) % 5 === 0;
 	ctx.shadowBlur = 12;
