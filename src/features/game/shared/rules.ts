@@ -52,12 +52,12 @@ export const speedOf = (d: DroneSpec): number => 2.7 * (1 + 0.15 * d.thrust);
 /** What it costs to bring a drone back to full hull. */
 export const repairCost = (d: DroneSpec): number => Math.ceil((100 - d.hull) / 25) * PRICE.repairPer25;
 
-/** What a drone may be called: 2 to 8 letters, digits or dashes, starting with a letter. */
-export const DRONE_NAME = /^[A-Z][A-Z0-9-]{1,7}$/;
+/** What a drone may be called: 3 to 8 letters, digits or dashes, starting with a letter. */
+export const DRONE_NAME = /^[A-Z][A-Z0-9-]{2,7}$/;
 
 /** Why drone `id` can't be called `name`, or null when it can: the shape, the words commands already use, and the other drones' names. */
 export function nameProblem(drones: readonly DroneSpec[], id: number, name: string): string | null {
-	if (!DRONE_NAME.test(name)) return "A name is 2 to 8 letters, digits or dashes, starting with a letter.";
+	if (!DRONE_NAME.test(name)) return "A name is 3 to 8 letters, digits or dashes, starting with a letter.";
 	if (/^(ALL|DOCK|[RDA]\d+)$/.test(name)) return `${name} is reserved for commands.`;
 	const taken = drones.find((d) => d.id !== id && d.name === name);
 	return taken === undefined ? null : `${name} is already drone ${taken.id}.`;

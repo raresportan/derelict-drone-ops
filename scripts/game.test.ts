@@ -306,7 +306,7 @@ test("drones can be renamed in a boarding or at the drydock, the name answers co
 	game.command(`nav kestrel r${m.rooms[m.start]!.num}`);
 	game.tick(0.05);
 	assert.equal(m.drones[0]!.state, "MOVING", "commands answer to the new name");
-	for (const [line, why] of [["rename 2 kestrel", /already drone 1/], ["rename 3 dock", /reserved/], ["rename 3 r5", /reserved/], ["rename 3 x", /2 to 8/], ["rename 3 waytoolongname", /2 to 8/], ["rename 3 9lives", /starting with a letter/], ["rename", /Usage/]] as const) {
+	for (const [line, why] of [["rename 2 kestrel", /already drone 1/], ["rename 3 dock", /reserved/], ["rename 3 d12", /reserved/], ["rename 3 r5", /3 to 8/], ["rename 3 ox", /3 to 8/], ["rename 3 waytoolongname", /3 to 8/], ["rename 3 9lives", /starting with a letter/], ["rename", /Usage/]] as const) {
 		game.command(line);
 		assert.ok(sink.saw(why), line);
 	}
