@@ -296,6 +296,30 @@ test("a decoy is heard only through open doors, as far as BUOY's reach", () => {
 	assert.equal(lureReach(m).size, 0, "gone once the decoy stops");
 });
 
+test("drones can be renamed in a boarding or at the drydock, the name answers commands and is saved", () => {
+	const { game, sink, saves } = setup();
+	game.command("2");
+	const m = game.mission!;
+	game.command("rename 1 kestrel");
+	assert.equal(m.drones[0]!.name, "KESTREL");
+	assert.equal(game.campaign!.drones[0]!.name, "KESTREL", "the contract's drone takes the name too");
+	game.command(`nav kestrel r${m.rooms[m.start]!.num}`);
+	game.tick(0.05);
+	assert.equal(m.drones[0]!.state, "MOVING", "commands answer to the new name");
+	for (const [line, why] of [["rename 2 kestrel", /already drone 1/], ["rename 3 dock", /reserved/], ["rename 3 r5", /reserved/], ["rename 3 x", /2 to 8/], ["rename 3 waytoolongname", /2 to 8/], ["rename 3 9lives", /starting with a letter/], ["rename", /Usage/]] as const) {
+		game.command(line);
+		assert.ok(sink.saw(why), line);
+	}
+	assert.deepEqual(m.drones.map((d) => d.name), ["KESTREL", "MOTH", "BUOY"], "refused names change nothing");
+	game.command("nav all dock");
+	run(game, 40);
+	game.command("undock");
+	run(game, CAST_OFF.toDrydock + 0.5);
+	assert.equal(game.mode, "drydock");
+	game.command("rename moth ox-9");
+	assert.deepEqual(saves.campaign()!.drones.map((d) => d.name), ["KESTREL", "OX-9", "BUOY"], "the drydock saves the names");
+});
+
 test("a purge kills every lifeform in its room, once", () => {
 	const { game, sink } = setup();
 	game.command("2");

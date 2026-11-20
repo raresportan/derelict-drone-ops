@@ -1,4 +1,4 @@
-import { ROLES } from "./rules.ts";
+import { DRONE_NAME, ROLES } from "./rules.ts";
 import type { Best, Campaign, DroneSpec } from "./types.ts";
 
 /** Everything kept between runs, as written to the save file or browser storage. */
@@ -36,7 +36,8 @@ function drone(v: unknown, i: number): DroneSpec | null {
 	const { hull, alive, armour, thrust, mk2 } = v;
 	if (typeof hull !== "number" || !(hull >= 0 && hull <= 100) || typeof alive !== "boolean" || typeof mk2 !== "boolean") return null;
 	if (!whole(armour) || armour > 2 || !whole(thrust) || thrust > 2) return null;
-	return { id: i + 1, name: role.name, mod: role.mod, hull, alive, armour, thrust, mk2 };
+	const name = typeof v.name === "string" && DRONE_NAME.test(v.name) ? v.name : role.name;
+	return { id: i + 1, name, mod: role.mod, hull, alive, armour, thrust, mk2 };
 }
 
 function campaign(v: unknown): Campaign | null {

@@ -24,8 +24,8 @@ const FKEYS: Record<Mode, readonly FKey[]> = {
 };
 
 const WORDS: Record<Mode, readonly string[]> = {
-	mission: ["nav", "open", "close", "gather", "read", "motion", "lure", "purge", "stop", "status", "undock", "labels", "sound", "clear", "help", "menu"],
-	drydock: ["repair", "rebuild", "upgrade", "buy", "hop", "archive", "status", "sound", "clear", "help", "menu", "armour", "thrust", "mk2", "fuel", "all"],
+	mission: ["nav", "open", "close", "gather", "read", "motion", "lure", "purge", "rename", "stop", "status", "undock", "labels", "sound", "clear", "help", "menu"],
+	drydock: ["repair", "rebuild", "upgrade", "rename", "buy", "hop", "archive", "status", "sound", "clear", "help", "menu", "armour", "thrust", "mk2", "fuel", "all"],
 	menu: ["orientation", "contract", "resume", "archive", "data", "sound", "clear"],
 	intro: ["skip", "sound"],
 	ending: ["deliver", "broadcast", "hop", "archive", "menu", "sound", "clear"],
@@ -233,7 +233,7 @@ export class Game {
 		}
 		const m = this.mission, camp = this.campaign;
 		if (this.mode === "mission" && m !== null) {
-			missionCommand({ m, sink: this.sink, rng: this.rng, finish: () => this.#finish("undock"), leave: () => this.#leaveMission(), toggleLabels: () => (this.labels = !this.labels) }, cmd, args, word);
+			missionCommand({ m, sink: this.sink, rng: this.rng, finish: () => this.#finish("undock"), leave: () => this.#leaveMission(), toggleLabels: () => (this.labels = !this.labels), renamed: (id, name) => this.#renamed(m, id, name) }, cmd, args, word);
 		} else if (this.mode === "drydock" && camp !== null) {
 			drydockCommand({ camp, sink: this.sink, jump: () => this.#jump(), leave: () => this.showMenu(), save: () => this.saves.keepCampaign(camp) }, cmd, args);
 		} else if (this.mode === "ending" && camp !== null) this.#endingCommand(camp, cmd);
@@ -313,6 +313,12 @@ export class Game {
 				if (this.campaign !== null && this.mode !== "menu") this.#keepNear(this.campaign.jump);
 			},
 		);
+	}
+
+	/** A drone renamed during a boarding keeps the name on the contract too; orientation's drones are its own. */
+	#renamed(m: Mission, id: number, name: string): void {
+		const spec = m.tutorial === null ? this.campaign?.drones.find((d) => d.id === id) : undefined;
+		if (spec !== undefined) spec.name = name;
 	}
 
 	#printLog(log: Log, fresh: boolean): void {

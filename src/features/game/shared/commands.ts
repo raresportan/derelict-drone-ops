@@ -1,4 +1,5 @@
 import type { Rng } from "./rng.ts";
+import { nameProblem } from "./rules.ts";
 import { killDrone, SUSPECT_SECONDS } from "./sim.ts";
 import type { Drone, DroneSpec, LogKind, Mission, Sink } from "./types.ts";
 import { doorByName, findPath, nodeName, roomByNum, slot, toWaypoints } from "./world.ts";
@@ -12,6 +13,7 @@ export const MISSION_HELP: readonly [string, LogKind][] = [
 	["  motion                  WREN (1) scans for lifeforms through walls", "note"],
 	["  lure 3                  BUOY (3) sounds a decoy; lifeforms come to it", "note"],
 	["  purge <room>            fire a surveyed purge valve — kills everything inside, once", "note"],
+	["  rename <drone> <name>   give a drone a new call sign       rename 1 kestrel", "note"],
 	["  stop <drones>   status   undock   labels   sound   clear   menu", "note"],
 	["Cargo only counts once a drone brings it into the dock. Drones left aboard at UNDOCK are lost.", "loot"],
 ];
@@ -46,6 +48,7 @@ export interface MissionHost {
 	finish(): void;
 	leave(): void;
 	toggleLabels(): boolean;
+	renamed(id: number, name: string): void;
 }
 
 function live(h: MissionHost, id: number): Drone | null {
@@ -301,6 +304,28 @@ function status(h: MissionHost): void {
 }
 
 /** Runs one mission command; `word` is what the player typed, for the error message. */
+/** Renames one drone in `drones` from `rename <drone> <name>`, saying why not when it can't; returns the drone renamed. */
+export function renameDrone(drones: readonly DroneSpec[], args: string[], sink: Sink): DroneSpec | null {
+	const [who, name, ...extra] = args;
+	const { ids } = parseDrones(who === undefined ? [] : [who], drones);
+	const d = ids.length === 1 ? drones.find((x) => x.id === ids[0]) : undefined;
+	if (d === undefined || name === undefined || extra.length > 0) {
+		sink.log("Usage: rename <drone> <name>   e.g.  rename 1 kestrel", "warn");
+		sink.sound("err");
+		return null;
+	}
+	const call = name.toUpperCase(), problem = nameProblem(drones, d.id, call);
+	if (problem !== null) {
+		sink.log(problem, "warn");
+		sink.sound("err");
+		return null;
+	}
+	sink.log(`Drone ${d.id}: ${d.name} is now ${call}.`, "ok");
+	d.name = call;
+	sink.sound("ok");
+	return d;
+}
+
 export function missionCommand(h: MissionHost, cmd: string, args: string[], word: string): void {
 	const { m, sink } = h;
 	if (cmd !== "undock") m.undockArm = false;
@@ -339,6 +364,11 @@ export function missionCommand(h: MissionHost, cmd: string, args: string[], word
 			return lure(h);
 		case "purge":
 			return purge(h, args);
+		case "rename": {
+			const d = renameDrone(m.drones, args, sink);
+			if (d !== null) h.renamed(d.id, d.name);
+			return;
+		}
 		case "stop": {
 			const { ids } = parseDrones(args.length > 0 ? args : ["all"], m.drones);
 			for (const id of ids) {

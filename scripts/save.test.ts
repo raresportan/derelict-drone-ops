@@ -72,3 +72,10 @@ test("writes land in the order asked, and a read waits for them", inScratch(asyn
 	await Promise.all(writes);
 	assert.equal((await new SaveFile(file).read()).campaign?.jump, 3);
 }));
+
+test("a drone's call sign is kept, and a damaged one falls back to the role name", () => {
+	const named = sample(2);
+	named.campaign!.drones[0]!.name = "KESTREL";
+	named.campaign!.drones[1]!.name = "no good!";
+	assert.deepEqual(parseSave(JSON.parse(JSON.stringify(named))).campaign?.drones.map((d) => d.name), ["KESTREL", "MOTH", "BUOY"]);
+});

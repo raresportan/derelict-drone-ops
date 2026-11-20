@@ -1,4 +1,4 @@
-import { parseDrones } from "./commands.ts";
+import { parseDrones, renameDrone } from "./commands.ts";
 import { MK2, PRICE, repairCost } from "./rules.ts";
 import type { Campaign, LogKind, Sink } from "./types.ts";
 
@@ -12,6 +12,7 @@ export const DRYDOCK_HELP: readonly [string, LogKind][] = [
 	[`  upgrade <drone> thrust  ${PRICE.thrust} scrap, max 2 — +15% speed each`, "note"],
 	[`  upgrade <drone> mk2     ${PRICE.mk2} scrap, once — improves the drone's own module`, "note"],
 	[`  buy fuel                ${PRICE.fuel} scrap — one jump's worth`, "note"],
+	["  rename <drone> <name>   give a drone a new call sign — rename 1 kestrel", "note"],
 	["  hop                     burn 1 fuel, fly the hopper to the next site   status   menu", "note"],
 ];
 
@@ -129,6 +130,9 @@ export function drydockCommand(h: DrydockHost, cmd: string, args: string[]): voi
 			upgrade(h, cmd === "upgrade" ? (rest[0] === "armor" ? "armour" : rest[0]) : cmd, ids);
 			break;
 		}
+		case "rename":
+			if (renameDrone(drones, args, sink) === null) return;
+			break;
 		case "buy":
 			if (args[0] !== "fuel") {
 				sink.log("Usage: buy fuel", "warn");

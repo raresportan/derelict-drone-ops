@@ -38,7 +38,7 @@ Everything the game does, how a player reaches it, and what verifies it.
   - ❌ the decoy's reach is unit tested (game.test.ts) and checked by eye on screenshots; no journey reads it off the map.
   - ✅ fight › "WREN, sent in after the purge, finds the lair empty"
   - ❌ radiation, the decoy and a lifeform stopped at a closed door are covered by unit tests only (game.test.ts covers doors; radiation and the decoy have none).
-- **Drydock and hops.** Undocking reaches the drydock, where scrap buys repairs, rebuilds, upgrades and fuel; HOP flies to the next, harder site.
+- **Drydock and hops.** Undocking reaches the drydock, where scrap buys repairs, rebuilds, upgrades and fuel; HOP flies to the next, harder site. RENAME gives a drone a new call sign there or during a boarding, and the name is saved with the contract (unit tested in game.test.ts and save.test.ts).
   - ✅ campaign › "Undocking reaches the drydock"
   - ✅ campaign › "Hopping flies to site 2"
   - ❌ prices and refusals are covered by unit tests (game.test.ts), not by a journey.
